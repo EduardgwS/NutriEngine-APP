@@ -14,9 +14,10 @@ import com.explosionlab.nutriengine.repository.PerfilRepository
 import kotlinx.coroutines.launch
 
 data class RelatorioUiState(
-    val perfil:        Perfil?  = null,
-    val historico7Dias: List<ConsumoRepository.ConsumoLocal> = emptyList(),
-    val carregando:    Boolean  = true,
+    val perfil:                 Perfil?                              = null,
+    val historico7Dias:         List<ConsumoRepository.ConsumoLocal>    = emptyList(),
+    val historicoCompleto7Dias: List<ConsumoRepository.ConsumoCompleto> = emptyList(),
+    val carregando:             Boolean                              = true,
 )
 
 class RelatorioViewModel(application: Application) : AndroidViewModel(application) {
@@ -29,11 +30,10 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
     var state by mutableStateOf(RelatorioUiState()); private set
 
     init {
-
-
-
         carregarDados()
     }
+
+    // ── Carregamento ──────────────────────────────────────────────────────────
 
     fun carregarDados() {
         viewModelScope.launch {
@@ -43,28 +43,21 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
                 var alturaOverride: Double? = null
 
                 if (healthRepo.isDisponivel() && healthRepo.temPermissoes()) {
-
-
                     val pesoHC   = healthRepo.lerUltimoPeso()
                     val alturaHC = healthRepo.lerUltimaAltura()
 
                     if (pesoHC != null || alturaHC != null) {
                         val pesoAtual   = pesoHC   ?: perfilRepo.carregarPeso()
                         val alturaAtual = alturaHC ?: perfilRepo.carregarAltura()
-
-
                         perfilRepo.salvarMedidas(pesoAtual, alturaAtual)
                         pesoOverride   = pesoAtual
                         alturaOverride = alturaAtual
                     }
 
-
                     val nutricao = healthRepo.lerNutricaoHoje()
-
-
                     if (nutricao.calorias > 0 || nutricao.proteinas > 0
-                        || nutricao.carboidratos > 0 || nutricao.gorduras > 0) {
-
+                        || nutricao.carboidratos > 0 || nutricao.gorduras > 0
+                    ) {
                         consumoRepo.salvarConsumoLocal(
                             data      = java.time.LocalDate.now().toString(),
                             kcal      = nutricao.calorias,
@@ -75,28 +68,63 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 }
 
-                val perfil         = perfilRepo.carregarPerfil(
+                val perfil = perfilRepo.carregarPerfil(
                     nomeGoogleFallback = authRepo.carregarNome(),
                     pesoOverride       = pesoOverride,
                     alturaOverride     = alturaOverride,
                 )
-                val historico7Dias = consumoRepo.lerHistorico7Dias()
 
                 state = state.copy(
-                    perfil         = perfil,
-                    historico7Dias = historico7Dias,
-                    carregando     = false,
+                    perfil                 = perfil,
+                    historico7Dias         = consumoRepo.lerHistorico7Dias(),
+                    historicoCompleto7Dias = consumoRepo.lerHistoricoCompleto7Dias(),
+                    carregando             = false,
                 )
 
             } catch (e: Exception) {
-                // Garante que a tela sai do loading mesmo em caso de erro inesperado.
-                // Tenta carregar o perfil só das prefs locais como fallback.
-                val perfilFallback   = runCatching {
+                val perfilFallback    = runCatching {
                     perfilRepo.carregarPerfil(nomeGoogleFallback = authRepo.carregarNome())
                 }.getOrNull()
-                val historicoFallback = runCatching { consumoRepo.lerHistorico7Dias() }.getOrElse { emptyList() }
-                state = state.copy(perfil = perfilFallback, historico7Dias = historicoFallback, carregando = false)
+                state = state.copy(
+                    perfil                 = perfilFallback,
+                    historico7Dias         = runCatching { consumoRepo.lerHistorico7Dias() }.getOrElse { emptyList() },
+                    historicoCompleto7Dias = runCatching { consumoRepo.lerHistoricoCompleto7Dias() }.getOrElse { emptyList() },
+                    carregando             = false,
+                )
             }
         }
+    }
+
+    // ── Edição — rápida (sem loading indicator) ───────────────────────────────
+
+    private fun recarregarHistorico() {
+        state = state.copy(
+            historico7Dias         = consumoRepo.lerHistorico7Dias(),
+            historicoCompleto7Dias = consumoRepo.lerHistoricoCompleto7Dias(),
+        )
+    }
+
+    fun editarAlimento(
+        data:            String,
+        listaId:         String,
+        alimentoIndex:   Int,
+        novaQuantidadeG: Double,
+    ) {
+        consumoRepo.editarAlimento(data, listaId, alimentoIndex, novaQuantidadeG)
+        recarregarHistorico()
+    }
+
+    fun removerAlimento(
+        data:          String,
+        listaId:       String,
+        alimentoIndex: Int,
+    ) {
+        consumoRepo.removerAlimento(data, listaId, alimentoIndex)
+        recarregarHistorico()
+    }
+
+    fun removerLista(data: String, listaId: String) {
+        consumoRepo.removerLista(data, listaId)
+        recarregarHistorico()
     }
 }

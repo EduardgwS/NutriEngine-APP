@@ -22,6 +22,7 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
     private val repo        = AlimentoRepository(AuthRepository(application))
     private val consumoRepo = ConsumoRepository(application)
 
+    // ── Pesquisa ──────────────────────────────────────────────────────────────
 
     private val _resultados = MutableStateFlow<List<Alimento>>(emptyList())
     val resultados: StateFlow<List<Alimento>> = _resultados.asStateFlow()
@@ -32,37 +33,66 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
 
     private var jobPesquisa: Job? = null
 
+    // ── Lista de escolhidos ───────────────────────────────────────────────────
 
-
-    private val _listaEscolhidos = MutableStateFlow<List<Alimento>>(emptyList())
-    val listaEscolhidos: StateFlow<List<Alimento>> = _listaEscolhidos.asStateFlow()
-
-    fun adicionarNaLista(alimento: Alimento) {
-        _listaEscolhidos.value = _listaEscolhidos.value + alimento
+    /**
+     * Alimento selecionado pelo usuário com a quantidade em gramas.
+     * Os campos *Escalonado são calculados sob demanda a partir dos
+     * valores base por 100 g.
+     */
+    data class AlimentoComQuantidade(
+        val alimento:   Alimento,
+        val quantidadeG: Double,
+    ) {
+        private val fator: Double           get() = quantidadeG / 100.0
+        val kcalEscalonado:         Double  get() = alimento.kcal         * fator
+        val proteinasEscalonado:    Double  get() = alimento.proteinas    * fator
+        val carboidratosEscalonado: Double  get() = alimento.carboidratos * fator
+        val gordurasEscalonado:     Double  get() = alimento.gorduras     * fator
     }
 
-    fun removerDaLista(alimento: Alimento) {
-        _listaEscolhidos.value = _listaEscolhidos.value - alimento
+    private val _listaEscolhidos = MutableStateFlow<List<AlimentoComQuantidade>>(emptyList())
+    val listaEscolhidos: StateFlow<List<AlimentoComQuantidade>> = _listaEscolhidos.asStateFlow()
+
+    fun adicionarNaLista(alimento: Alimento, quantidadeG: Double = 100.0) {
+        _listaEscolhidos.value = _listaEscolhidos.value +
+                AlimentoComQuantidade(alimento, quantidadeG)
+    }
+
+    fun removerDaLista(item: AlimentoComQuantidade) {
+        _listaEscolhidos.value = _listaEscolhidos.value - item
     }
 
     fun limparLista() {
         _listaEscolhidos.value = emptyList()
     }
 
-
-    fun salvarLista(itens: List<Alimento>) {
+    /**
+     * Persiste os itens como uma nova [ConsumoRepository.ListaSalva] com
+     * os valores nutricionais *por 100 g* (base) + quantidade escolhida.
+     * O repositório recalcula os totais do dia automaticamente.
+     */
+    fun salvarLista(itens: List<AlimentoComQuantidade>) {
         if (itens.isEmpty()) return
-        consumoRepo.acumularConsumoLocal(
-            kcal      = itens.sumOf { it.kcal },
-            proteinaG = itens.sumOf { it.proteinas },
-            carboG    = itens.sumOf { it.carboidratos },
-            gorduraG  = itens.sumOf { it.gorduras },
+        consumoRepo.salvarListaDeAlimentos(
+            alimentos = itens.map { a ->
+                ConsumoRepository.AlimentoSalvo(
+                    id                  = a.alimento.id,
+                    descricao           = a.alimento.descricao,
+                    categoria           = a.alimento.categoria,
+                    quantidadeG         = a.quantidadeG,
+                    kcalPer100g         = a.alimento.kcal,
+                    proteinasPer100g    = a.alimento.proteinas,
+                    carboidratosPer100g = a.alimento.carboidratos,
+                    gordurasPer100g     = a.alimento.gorduras,
+                )
+            }
         )
     }
 
+    // ── Identificação por imagem ──────────────────────────────────────────────
 
-
-    var identificando        by mutableStateOf(false)        ; private set
+    var identificando        by mutableStateOf(false)           ; private set
     var alimentoIdentificado by mutableStateOf<Alimento?>(null) ; private set
     var erroIdentificacao    by mutableStateOf<String?>(null)   ; private set
 
@@ -81,7 +111,6 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
             }
 
             val resultado = repo.pesquisar(nomeIdentificado).firstOrNull()
-
             if (resultado == null) {
                 erroIdentificacao = "Alimento \"$nomeIdentificado\" identificado, mas não encontrado na tabela TACO. Tente buscar manualmente."
             } else {
@@ -96,13 +125,11 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
         erroIdentificacao    = null
     }
 
-
-
+    // ── Pesquisa manual ───────────────────────────────────────────────────────
 
     fun onQueryChange(novo: String) {
         query         = novo
         semResultados = false
-
         jobPesquisa?.cancel()
 
         if (novo.isBlank()) {
@@ -116,18 +143,15 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-
     fun pesquisar(q: String = query) {
         if (q.isBlank()) return
         jobPesquisa?.cancel()
-        jobPesquisa = viewModelScope.launch {
-            executarPesquisa(q)
-        }
+        jobPesquisa = viewModelScope.launch { executarPesquisa(q) }
     }
 
     private suspend fun executarPesquisa(q: String) {
-        carregando = true
-        val lista  = repo.pesquisar(q)
+        carregando        = true
+        val lista         = repo.pesquisar(q)
         _resultados.value = lista
         semResultados     = lista.isEmpty()
         carregando        = false

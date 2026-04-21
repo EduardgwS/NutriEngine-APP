@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -51,12 +53,11 @@ import java.io.ByteArrayOutputStream
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PesquisarScreen(
-    innerPadding: PaddingValues     = PaddingValues(),
+    innerPadding: PaddingValues      = PaddingValues(),
     viewModel:    PesquisarViewModel = viewModel()
 ) {
     val context        = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-
 
     var temPermissaoCamera by remember {
         mutableStateOf(
@@ -72,28 +73,23 @@ fun PesquisarScreen(
         if (!temPermissaoCamera) permissaoLauncher.launch(Manifest.permission.CAMERA)
     }
 
-
     var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
     var capturando      by remember { mutableStateOf(false) }
-
 
     val sheetState          = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var sheetAberto         by remember { mutableStateOf(false) }
     var alimentoSelecionado by remember { mutableStateOf<Alimento?>(null) }
-
 
     val listaSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var listaAberta     by remember { mutableStateOf(false) }
 
     val listaEscolhidos      by viewModel.listaEscolhidos.collectAsState()
 
-
     val identificando        = viewModel.identificando
     val alimentoIdentificado = viewModel.alimentoIdentificado
     val erroIdentificacao    = viewModel.erroIdentificacao
 
-
-    val resultadoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val resultadoSheetState  = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val resultadoSheetAberto = alimentoIdentificado != null || erroIdentificacao != null
 
     Box(
@@ -102,7 +98,7 @@ fun PesquisarScreen(
             .padding(innerPadding)
     ) {
 
-
+        // ── Preview da câmera ──────────────────────────────────────────────────
         if (temPermissaoCamera) {
             AndroidView(
                 factory  = { ctx ->
@@ -150,7 +146,6 @@ fun PesquisarScreen(
                 modifier = Modifier.fillMaxSize()
             )
         } else {
-
             Box(
                 modifier         = Modifier.fillMaxSize().background(Color.Black),
                 contentAlignment = Alignment.Center
@@ -170,14 +165,11 @@ fun PesquisarScreen(
             }
         }
 
-        // ── Badge da lista no canto superior direito ───────────────────────────
+        // ── Badge da lista ─────────────────────────────────────────────────────
         BadgedBox(
             badge = {
                 if (listaEscolhidos.isNotEmpty()) {
-                    Badge(
-                        containerColor = NutriGreen,
-                        contentColor   = Color.White
-                    ) {
+                    Badge(containerColor = NutriGreen, contentColor = Color.White) {
                         Text(
                             text  = listaEscolhidos.size.toString(),
                             style = MaterialTheme.typography.labelSmall
@@ -190,7 +182,7 @@ fun PesquisarScreen(
                 .padding(top = 12.dp, end = 12.dp)
         ) {
             IconButton(
-                onClick = { listaAberta = true },
+                onClick  = { listaAberta = true },
                 modifier = Modifier
                     .background(
                         color = Color.Black.copy(alpha = 0.45f),
@@ -207,7 +199,7 @@ fun PesquisarScreen(
             }
         }
 
-        // ── Botões na parte inferior ───────────────────────────────────────────
+        // ── Botões inferiores ──────────────────────────────────────────────────
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -215,8 +207,6 @@ fun PesquisarScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-
-            // ── Botão "Identificar Alimento por Foto" ─────────────────────────
             Button(
                 onClick = {
                     val ic = imageCaptureRef ?: return@Button
@@ -244,9 +234,7 @@ fun PesquisarScreen(
                     )
                 },
                 enabled   = temPermissaoCamera && !capturando && !identificando && imageCaptureRef != null,
-                modifier  = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
+                modifier  = Modifier.fillMaxWidth().height(52.dp),
                 shape     = RoundedCornerShape(28.dp),
                 colors    = ButtonDefaults.buttonColors(
                     containerColor         = Color(0xFF1565C0),
@@ -273,15 +261,12 @@ fun PesquisarScreen(
                 }
             }
 
-            // ── Botão "Adicionar Manualmente" ──────────────────────────────────
             Button(
                 onClick = {
                     viewModel.limpar()
                     sheetAberto = true
                 },
-                modifier  = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
+                modifier  = Modifier.fillMaxWidth().height(52.dp),
                 shape     = RoundedCornerShape(28.dp),
                 colors    = ButtonDefaults.buttonColors(containerColor = NutriGreen),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
@@ -305,15 +290,15 @@ fun PesquisarScreen(
         ) {
             if (alimentoSelecionado != null) {
                 DetalheAlimento(
-                    alimento           = alimentoSelecionado!!,
-                    onVoltar           = { alimentoSelecionado = null },
-                    onFechar           = {
+                    alimento = alimentoSelecionado!!,
+                    onVoltar = { alimentoSelecionado = null },
+                    onFechar = {
                         sheetAberto = false
                         viewModel.limpar()
                         alimentoSelecionado = null
                     },
-                    onAdicionarNaLista = { alimento ->
-                        viewModel.adicionarNaLista(alimento)
+                    onAdicionarNaLista = { alimento, gramas ->
+                        viewModel.adicionarNaLista(alimento, gramas)
                         sheetAberto = false
                         viewModel.limpar()
                         alimentoSelecionado = null
@@ -328,10 +313,10 @@ fun PesquisarScreen(
         }
     }
 
-    // ── Bottom Sheet da lista de itens escolhidos ──────────────────────────────
+    // ── Bottom Sheet da lista ──────────────────────────────────────────────────
     if (listaAberta) {
         var resumoVisivel  by remember { mutableStateOf(false) }
-        var resumoSnapshot by remember { mutableStateOf<List<Alimento>>(emptyList()) }
+        var resumoSnapshot by remember { mutableStateOf<List<PesquisarViewModel.AlimentoComQuantidade>>(emptyList()) }
 
         ModalBottomSheet(
             onDismissRequest = {
@@ -365,25 +350,23 @@ fun PesquisarScreen(
         }
     }
 
-    // ── Bottom Sheet de resultado da identificação por imagem ──────────────────
+    // ── Bottom Sheet de resultado de identificação ─────────────────────────────
     if (resultadoSheetAberto) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.limparIdentificacao() },
             sheetState       = resultadoSheetState
         ) {
             if (alimentoIdentificado != null) {
-                // Reutiliza o DetalheAlimento com fluxo idêntico à busca manual
                 DetalheAlimento(
-                    alimento           = alimentoIdentificado,
-                    onVoltar           = { viewModel.limparIdentificacao() },
-                    onFechar           = { viewModel.limparIdentificacao() },
-                    onAdicionarNaLista = { alimento ->
-                        viewModel.adicionarNaLista(alimento)
+                    alimento = alimentoIdentificado,
+                    onVoltar = { viewModel.limparIdentificacao() },
+                    onFechar = { viewModel.limparIdentificacao() },
+                    onAdicionarNaLista = { alimento, gramas ->
+                        viewModel.adicionarNaLista(alimento, gramas)
                         viewModel.limparIdentificacao()
                     }
                 )
             } else if (erroIdentificacao != null) {
-                // Mensagem de erro amigável
                 Column(
                     modifier            = Modifier
                         .fillMaxWidth()
@@ -425,13 +408,15 @@ fun PesquisarScreen(
     }
 }
 
+// ── Lista de itens escolhidos ─────────────────────────────────────────────────
+
 @Composable
 fun ListaEscolhidos(
-    itens:         List<Alimento>,
-    onRemover:     (Alimento) -> Unit,
+    itens:         List<PesquisarViewModel.AlimentoComQuantidade>,
+    onRemover:     (PesquisarViewModel.AlimentoComQuantidade) -> Unit,
     onLimpar:      () -> Unit,
     onFechar:      () -> Unit,
-    onFecharLista: () -> Unit
+    onFecharLista: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -439,7 +424,6 @@ fun ListaEscolhidos(
             .padding(horizontal = 16.dp)
             .navigationBarsPadding()
     ) {
-        // Cabeçalho
         Row(
             modifier              = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -466,9 +450,7 @@ fun ListaEscolhidos(
 
         if (itens.isEmpty()) {
             Box(
-                modifier         = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp),
+                modifier         = Modifier.fillMaxWidth().height(160.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -492,10 +474,10 @@ fun ListaEscolhidos(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 contentPadding      = PaddingValues(bottom = 12.dp)
             ) {
-                items(itens) { alimento ->
+                items(itens) { item ->
                     CardItemLista(
-                        alimento  = alimento,
-                        onRemover = { onRemover(alimento) }
+                        item      = item,
+                        onRemover = { onRemover(item) }
                     )
                 }
             }
@@ -504,17 +486,11 @@ fun ListaEscolhidos(
 
             Button(
                 onClick  = onFecharLista,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape  = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = NutriGreen)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape    = RoundedCornerShape(28.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = NutriGreen)
             ) {
-                Icon(
-                    imageVector        = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint               = Color.White
-                )
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(8.dp))
                 Text("Fechar lista", color = Color.White, fontWeight = FontWeight.Bold)
             }
@@ -524,17 +500,17 @@ fun ListaEscolhidos(
     }
 }
 
-
+// ── Resumo da lista ───────────────────────────────────────────────────────────
 
 @Composable
 fun ResumoLista(
-    itens:    List<Alimento>,
-    onFechar: () -> Unit
+    itens:    List<PesquisarViewModel.AlimentoComQuantidade>,
+    onFechar: () -> Unit,
 ) {
-    val totalKcal  = itens.sumOf { it.kcal }
-    val totalProt  = itens.sumOf { it.proteinas }
-    val totalCarbo = itens.sumOf { it.carboidratos }
-    val totalGord  = itens.sumOf { it.gorduras }
+    val totalKcal  = itens.sumOf { it.kcalEscalonado }
+    val totalProt  = itens.sumOf { it.proteinasEscalonado }
+    val totalCarbo = itens.sumOf { it.carboidratosEscalonado }
+    val totalGord  = itens.sumOf { it.gordurasEscalonado }
 
     Column(
         modifier            = Modifier
@@ -567,22 +543,19 @@ fun ResumoLista(
 
         Spacer(Modifier.height(20.dp))
 
-        // Card de destaque — calorias totais
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape    = RoundedCornerShape(16.dp),
             colors   = CardDefaults.cardColors(containerColor = NutriGreen)
         ) {
             Column(
-                modifier            = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp),
+                modifier            = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text       = "⚡ Total de calorias",
-                    style      = MaterialTheme.typography.labelLarge,
-                    color      = Color.White.copy(alpha = 0.85f)
+                    text  = "⚡ Total de calorias",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White.copy(alpha = 0.85f)
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -597,25 +570,22 @@ fun ResumoLista(
 
         Spacer(Modifier.height(12.dp))
 
-        // Cards de macros
         Row(
             modifier              = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            MacroCard("🥩 Proteínas",   "%.1f g".format(totalProt),  Modifier.weight(1f))
-            MacroCard("🍞 Carboidratos","%.1f g".format(totalCarbo), Modifier.weight(1f))
-            MacroCard("🧈 Gorduras",    "%.1f g".format(totalGord),  Modifier.weight(1f))
+            MacroCard("🥩 Proteínas",    "%.1f g".format(totalProt),  Modifier.weight(1f))
+            MacroCard("🍞 Carboidratos", "%.1f g".format(totalCarbo), Modifier.weight(1f))
+            MacroCard("🧈 Gorduras",     "%.1f g".format(totalGord),  Modifier.weight(1f))
         }
 
         Spacer(Modifier.height(24.dp))
 
         Button(
             onClick  = onFechar,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape  = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = NutriGreen)
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape    = RoundedCornerShape(28.dp),
+            colors   = ButtonDefaults.buttonColors(containerColor = NutriGreen)
         ) {
             Text("Concluir e limpar lista", color = Color.White, fontWeight = FontWeight.Bold)
         }
@@ -624,43 +594,13 @@ fun ResumoLista(
     }
 }
 
+// ── Card de item na lista ─────────────────────────────────────────────────────
 
 @Composable
-fun MacroCard(label: String, valor: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape    = RoundedCornerShape(14.dp),
-        colors   = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text      = label,
-                style     = MaterialTheme.typography.labelSmall,
-                color     = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text       = valor,
-                style      = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign  = TextAlign.Center
-            )
-        }
-    }
-}
-
-// ── Card de item na lista ──────────────────────────────────────────────────────
-
-@Composable
-fun CardItemLista(alimento: Alimento, onRemover: () -> Unit) {
+fun CardItemLista(
+    item:     PesquisarViewModel.AlimentoComQuantidade,
+    onRemover: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape    = RoundedCornerShape(12.dp),
@@ -677,21 +617,19 @@ fun CardItemLista(alimento: Alimento, onRemover: () -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    alimento.descricao,
+                    item.alimento.descricao,
                     fontWeight = FontWeight.Bold,
                     style      = MaterialTheme.typography.bodyMedium
                 )
-                if (alimento.categoria.isNotBlank()) {
-                    Text(
-                        alimento.categoria,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    "%.0f g".format(item.quantidadeG),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                "%.0f kcal".format(alimento.kcal),
+                "%.0f kcal".format(item.kcalEscalonado),
                 color      = NutriGreen,
                 fontWeight = FontWeight.Bold,
                 style      = MaterialTheme.typography.bodyMedium
@@ -709,12 +647,12 @@ fun CardItemLista(alimento: Alimento, onRemover: () -> Unit) {
     }
 }
 
-
+// ── Pesquisa manual ───────────────────────────────────────────────────────────
 
 @Composable
 fun PesquisaManual(
     viewModel:     PesquisarViewModel,
-    onSelecionado: (Alimento) -> Unit
+    onSelecionado: (Alimento) -> Unit,
 ) {
     val resultados by viewModel.resultados.collectAsState()
 
@@ -779,7 +717,7 @@ fun PesquisaManual(
     }
 }
 
-// ── Card de alimento ───────────────────────────────────────────────────────────
+// ── Card de alimento nos resultados ──────────────────────────────────────────
 
 @Composable
 fun CardAlimento(alimento: Alimento, onClick: () -> Unit) {
@@ -810,7 +748,7 @@ fun CardAlimento(alimento: Alimento, onClick: () -> Unit) {
                 }
             }
             Text(
-                "%.0f kcal".format(alimento.kcal),
+                "%.0f kcal/100g".format(alimento.kcal),
                 color      = NutriGreen,
                 fontWeight = FontWeight.Bold,
                 style      = MaterialTheme.typography.bodyMedium
@@ -819,21 +757,33 @@ fun CardAlimento(alimento: Alimento, onClick: () -> Unit) {
     }
 }
 
-// ── Detalhe do alimento ────────────────────────────────────────────────────────
+// ── Detalhe do alimento com campo de gramas ───────────────────────────────────
 
 @Composable
 fun DetalheAlimento(
     alimento:           Alimento,
     onVoltar:           () -> Unit,
     onFechar:           () -> Unit,
-    onAdicionarNaLista: (Alimento) -> Unit = {}
+    onAdicionarNaLista: (Alimento, Double) -> Unit = { _, _ -> },
 ) {
+    // Estado do campo de gramas — começa em 100
+    var gramasInput by remember { mutableStateOf("100") }
+    val gramas = gramasInput.replace(",", ".").toDoubleOrNull()?.coerceAtLeast(0.1) ?: 100.0
+    val fator  = gramas / 100.0
+
+    // Valores escalonados para o preview
+    val kcalReal  = alimento.kcal         * fator
+    val protReal  = alimento.proteinas    * fator
+    val carboReal = alimento.carboidratos * fator
+    val gordReal  = alimento.gorduras     * fator
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .navigationBarsPadding()
     ) {
+        // Cabeçalho
         Row(
             Modifier.fillMaxWidth(),
             Arrangement.SpaceBetween,
@@ -856,67 +806,134 @@ fun DetalheAlimento(
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
+
+        // ── Campo de quantidade ────────────────────────────────────────────────
         Text(
-            "Informação nutricional (por 100g)",
+            "Quantidade consumida",
+            style      = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(6.dp))
+
+        OutlinedTextField(
+            value           = gramasInput,
+            onValueChange   = { novo ->
+                // Permite dígitos, ponto e vírgula; impede mais de 5 chars
+                if (novo.length <= 6 && novo.all { it.isDigit() || it == '.' || it == ',' })
+                    gramasInput = novo
+            },
+            label           = { Text("Gramas (g)") },
+            placeholder     = { Text("100") },
+            suffix          = { Text("g") },
+            modifier        = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine      = true,
+            shape           = RoundedCornerShape(12.dp),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Preview dos macros escalonados ─────────────────────────────────────
+        Text(
+            "Informação nutricional para %.0fg".format(gramas),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DadoCard("⚡ Energia",  "%.0f kcal".format(alimento.kcal),   Modifier.weight(1f))
-            DadoCard("🥩 Proteína", "%.1f g".format(alimento.proteinas), Modifier.weight(1f))
+            DadoCard("⚡ Energia",  "%.0f kcal".format(kcalReal),  Modifier.weight(1f))
+            DadoCard("🥩 Proteína", "%.1f g".format(protReal),     Modifier.weight(1f))
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DadoCard("🍞 Carbo",   "%.1f g".format(alimento.carboidratos), Modifier.weight(1f))
-            DadoCard("🧈 Gordura", "%.1f g".format(alimento.gorduras),     Modifier.weight(1f))
+            DadoCard("🍞 Carbo",   "%.1f g".format(carboReal),    Modifier.weight(1f))
+            DadoCard("🧈 Gordura", "%.1f g".format(gordReal),     Modifier.weight(1f))
         }
+
+        // Referência por 100g (em texto pequeno, sempre visível)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Valores de referência (por 100g): " +
+                    "%.0f kcal · %.1fg prot · %.1fg carbo · %.1fg gord".format(
+                        alimento.kcal, alimento.proteinas, alimento.carboidratos, alimento.gorduras
+                    ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Spacer(Modifier.height(20.dp))
 
         Button(
-            onClick  = { onAdicionarNaLista(alimento) },
+            onClick  = { onAdicionarNaLista(alimento, gramas) },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape    = RoundedCornerShape(28.dp),
-            colors   = ButtonDefaults.buttonColors(containerColor = NutriGreen)
+            colors   = ButtonDefaults.buttonColors(containerColor = NutriGreen),
+            enabled  = gramasInput.isNotBlank() && (gramas > 0),
         ) {
-            Text("Adicionar à lista", fontWeight = FontWeight.Bold)
+            Text(
+                "Adicionar %.0fg à lista".format(gramas),
+                fontWeight = FontWeight.Bold,
+            )
         }
         Spacer(Modifier.height(8.dp))
     }
 }
 
-// ── Compressão de imagem para envio ───────────────────────────────────────────
+// ── Macro card reutilizável ───────────────────────────────────────────────────
 
-/**
- * Reduz o bitmap para no máximo [maxDim]×[maxDim] px mantendo proporção,
- * depois comprime como JPEG com qualidade [qualidade].
- *
- * Uma foto de 1920×1080 (~500 KB) passa a ~25–40 KB com esses valores,
- * acelerando bastante o envio em conexões lentas sem comprometer o
- * reconhecimento pela IA.
- */
+@Composable
+fun MacroCard(label: String, valor: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape    = RoundedCornerShape(14.dp),
+        colors   = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier            = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text      = label,
+                style     = MaterialTheme.typography.labelSmall,
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text       = valor,
+                style      = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign  = TextAlign.Center
+            )
+        }
+    }
+}
+
+// ── Compressão de imagem ──────────────────────────────────────────────────────
+
 private fun comprimirParaEnvio(
     bitmap:    Bitmap,
     maxDim:    Int = 800,
     qualidade: Int = 72,
 ): ByteArray {
-    val largura  = bitmap.width
-    val altura   = bitmap.height
-    val escala   = maxDim.toFloat() / maxOf(largura, altura)
+    val largura = bitmap.width
+    val altura  = bitmap.height
+    val escala  = maxDim.toFloat() / maxOf(largura, altura)
 
     val reduzido = if (escala < 1f) {
         Bitmap.createScaledBitmap(
             bitmap,
             (largura * escala).toInt(),
             (altura  * escala).toInt(),
-            /* filter = */ true
+            true
         )
-    } else {
-        bitmap
-    }
+    } else bitmap
 
     return ByteArrayOutputStream().also { stream ->
         reduzido.compress(Bitmap.CompressFormat.JPEG, qualidade, stream)
