@@ -12,15 +12,15 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.ExistingPeriodicWorkPolicy
-import com.explosionlab.nutriengine.navigation.NutriNavGraph
-import com.explosionlab.nutriengine.notifications.NutriNotificationManager
-import com.explosionlab.nutriengine.notifications.NotificationScheduler
-import com.explosionlab.nutriengine.ui.theme.NutriEngineTheme
-import com.explosionlab.nutriengine.viewmodel.AppViewModel
-import com.explosionlab.nutriengine.viewmodel.HomeViewModel
-import com.explosionlab.nutriengine.viewmodel.MegumiViewModel
-import com.explosionlab.nutriengine.viewmodel.MercadoViewModel
-import com.explosionlab.nutriengine.viewmodel.TemaApp
+import com.explosionlab.nutriengine.core.navigation.NutriNavGraph
+import com.explosionlab.nutriengine.core.notifications.NutriNotificationManager
+import com.explosionlab.nutriengine.core.notifications.NotificationScheduler
+import com.explosionlab.nutriengine.core.designsystem.NutriEngineTheme
+import com.explosionlab.nutriengine.core.common.AppViewModel
+import com.explosionlab.nutriengine.features.home.HomeViewModel
+import com.explosionlab.nutriengine.features.megumi.MegumiViewModel
+import com.explosionlab.nutriengine.features.market.MercadoViewModel
+import com.explosionlab.nutriengine.core.common.TemaApp
 
 class MainActivity : ComponentActivity() {
 

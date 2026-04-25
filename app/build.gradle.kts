@@ -56,6 +56,8 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     implementation(libs.okhttp)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
 
     implementation(libs.androidx.health.connect)
 
