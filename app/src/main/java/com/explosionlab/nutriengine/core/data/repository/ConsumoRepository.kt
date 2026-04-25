@@ -16,14 +16,17 @@ import java.util.UUID
 
 class ConsumoRepository(context: Context) {
 
-    private val TAG = "ConsumoRepository"
-    private val db = AppDatabase.Companion.getDatabase(context)
+    companion object {
+        private const val TAG = "ConsumoRepository"
+    }
+
+    private val db  = AppDatabase.getDatabase(context)
     private val dao = db.consumoDao()
 
     private val _mudancas = MutableSharedFlow<Unit>(replay = 1)
     val mudancas: SharedFlow<Unit> = _mudancas.asSharedFlow()
 
-    // ── Modelos ───────────────────────────────────────────────────────────────
+    //Modelos
 
     data class AlimentoSalvo(
         val id: String,
@@ -36,12 +39,10 @@ class ConsumoRepository(context: Context) {
         val gordurasPer100g: Double,
     ) {
         private val fator: Double get() = quantidadeG / 100.0
-        val kcal: Double get() = kcalPer100g * fator
-        val proteinas: Double get() = proteinasPer100g * fator
+        val kcal: Double         get() = kcalPer100g * fator
+        val proteinas: Double    get() = proteinasPer100g * fator
         val carboidratos: Double get() = carboidratosPer100g * fator
-        val gorduras: Double get() = gordurasPer100g * fator
-
-        fun comQuantidade(g: Double) = copy(quantidadeG = g.coerceAtLeast(0.1))
+        val gorduras: Double     get() = gordurasPer100g * fator
     }
 
     data class ListaSalva(
@@ -50,10 +51,10 @@ class ConsumoRepository(context: Context) {
         val horaTexto: String,
         val alimentos: List<AlimentoSalvo>,
     ) {
-        val totalKcal: Double get() = alimentos.sumOf { it.kcal }
-        val totalProteinas: Double get() = alimentos.sumOf { it.proteinas }
+        val totalKcal: Double        get() = alimentos.sumOf { it.kcal }
+        val totalProteinas: Double   get() = alimentos.sumOf { it.proteinas }
         val totalCarboidratos: Double get() = alimentos.sumOf { it.carboidratos }
-        val totalGorduras: Double get() = alimentos.sumOf { it.gorduras }
+        val totalGorduras: Double    get() = alimentos.sumOf { it.gorduras }
     }
 
     data class ConsumoLocal(
@@ -70,80 +71,68 @@ class ConsumoRepository(context: Context) {
         val listas: List<ListaSalva>,
     )
 
-    // ── Mapeadores ────────────────────────────────────────────────────────────
+    //Mappers
 
     private fun AlimentoEntity.toAlimentoSalvo() = AlimentoSalvo(
-        id = alimentoId,
-        descricao = descricao,
-        categoria = categoria,
-        quantidadeG = quantidadeG,
-        kcalPer100g = kcalPer100g,
+        id               = alimentoId,
+        descricao        = descricao,
+        categoria        = categoria,
+        quantidadeG      = quantidadeG,
+        kcalPer100g      = kcalPer100g,
         proteinasPer100g = proteinasPer100g,
         carboidratosPer100g = carboidratosPer100g,
-        gordurasPer100g = gordurasPer100g
+        gordurasPer100g  = gordurasPer100g
     )
 
     private fun AlimentoSalvo.toEntity(listaId: String) = AlimentoEntity(
-        listaId = listaId,
-        alimentoId = id,
-        descricao = descricao,
-        categoria = categoria,
-        quantidadeG = quantidadeG,
-        kcalPer100g = kcalPer100g,
+        listaId          = listaId,
+        alimentoId       = id,
+        descricao        = descricao,
+        categoria        = categoria,
+        quantidadeG      = quantidadeG,
+        kcalPer100g      = kcalPer100g,
         proteinasPer100g = proteinasPer100g,
         carboidratosPer100g = carboidratosPer100g,
-        gordurasPer100g = gordurasPer100g
+        gordurasPer100g  = gordurasPer100g
     )
 
-    // ── Listas — escrita ──────────────────────────────────────────────────────
+    private fun ConsumoDiarioEntity.toConsumoLocal() = ConsumoLocal(
+        data         = data,
+        kcal         = kcal,
+        proteinaG    = proteinaG,
+        carboG       = carboG,
+        gorduraG     = gorduraG,
+        atualizadoEm = atualizadoEm
+    )
+
+    //Salvamento das listas de alimentos
 
     suspend fun salvarListaDeAlimentos(
         data: String = LocalDate.now().toString(),
         alimentos: List<AlimentoSalvo>,
     ) {
         if (alimentos.isEmpty()) return
-        val hora = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+        val hora    = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
         val listaId = UUID.randomUUID().toString()
 
-        val listaEntity = ListaEntity(
-            id = listaId,
-            data = data,
-            timestamp = System.currentTimeMillis(),
-            horaTexto = hora
+        dao.salvarListaCompleta(
+            ListaEntity(id = listaId, data = data, timestamp = System.currentTimeMillis(), horaTexto = hora),
+            alimentos.map { it.toEntity(listaId) }
         )
-
-        val alimentosEntities = alimentos.map { it.toEntity(listaId) }
-
-        dao.salvarListaCompleta(listaEntity, alimentosEntities)
         recalcularTotais(data)
         Log.d(TAG, "Lista salva — $data $hora: ${alimentos.size} itens")
     }
 
-    // ── Listas — edição ───────────────────────────────────────────────────────
+    //Edição dos alimentos
 
-    suspend fun editarAlimento(
-        data: String,
-        listaId: String,
-        alimentoId: String,
-        novaQuantidadeG: Double,
-    ) {
+    suspend fun editarAlimento(data: String, listaId: String, alimentoId: String, novaQuantidadeG: Double) {
         dao.atualizarQuantidadeAlimento(listaId, alimentoId, novaQuantidadeG)
         recalcularTotais(data)
     }
 
-    suspend fun removerAlimento(
-        data: String,
-        listaId: String,
-        alimentoId: String,
-    ) {
+    suspend fun removerAlimento(data: String, listaId: String, alimentoId: String) {
         dao.removerAlimento(listaId, alimentoId)
-
-        // Verifica se a lista ficou vazia
-        val restantes = dao.getAlimentosDaLista(listaId)
-        if (restantes.isEmpty()) {
-            dao.deletarLista(listaId)
-        }
-
+        if (dao.getAlimentosDaLista(listaId).isEmpty()) dao.deletarLista(listaId)
         recalcularTotais(data)
     }
 
@@ -152,36 +141,30 @@ class ConsumoRepository(context: Context) {
         recalcularTotais(data)
     }
 
-    // ── Listas — leitura ──────────────────────────────────────────────────────
 
-    suspend fun carregarListas(data: String = LocalDate.now().toString()): List<ListaSalva> {
-        val listaEntities = dao.getListasPorData(data)
-        return listaEntities.map { le ->
-            val alimentos = dao.getAlimentosDaLista(le.id).map { it.toAlimentoSalvo() }
+    suspend fun carregarListas(data: String = LocalDate.now().toString()): List<ListaSalva> =
+        dao.getListasPorData(data).map { le ->
             ListaSalva(
-                id = le.id,
+                id        = le.id,
                 timestamp = le.timestamp,
                 horaTexto = le.horaTexto,
-                alimentos = alimentos
+                alimentos = dao.getAlimentosDaLista(le.id).map { it.toAlimentoSalvo() }
             )
         }
-    }
 
-    // ── Persistência interna ──────────────────────────────────────────────────
+    //Persistencia interna
 
     private suspend fun recalcularTotais(data: String) {
         val listas = carregarListas(data)
         salvarConsumoLocal(
-            data = data,
-            kcal = listas.sumOf { it.totalKcal },
+            data      = data,
+            kcal      = listas.sumOf { it.totalKcal },
             proteinaG = listas.sumOf { it.totalProteinas },
-            carboG = listas.sumOf { it.totalCarboidratos },
-            gorduraG = listas.sumOf { it.totalGorduras },
+            carboG    = listas.sumOf { it.totalCarboidratos },
+            gorduraG  = listas.sumOf { it.totalGorduras },
         )
         _mudancas.emit(Unit)
     }
-
-    // ── Consumo agregado ──────────────────────────────────────────────────────
 
     suspend fun salvarConsumoLocal(
         data: String = LocalDate.now().toString(),
@@ -190,15 +173,16 @@ class ConsumoRepository(context: Context) {
         carboG: Double,
         gorduraG: Double,
     ) {
-        val entity = ConsumoDiarioEntity(
-            data = data,
-            kcal = kcal,
-            proteinaG = proteinaG,
-            carboG = carboG,
-            gorduraG = gorduraG,
-            atualizadoEm = System.currentTimeMillis()
+        dao.inserirConsumoDiario(
+            ConsumoDiarioEntity(
+                data         = data,
+                kcal         = kcal,
+                proteinaG    = proteinaG,
+                carboG       = carboG,
+                gorduraG     = gorduraG,
+                atualizadoEm = System.currentTimeMillis()
+            )
         )
-        dao.inserirConsumoDiario(entity)
     }
 
     suspend fun acumularConsumoLocal(
@@ -210,48 +194,28 @@ class ConsumoRepository(context: Context) {
     ) {
         val atual = carregarConsumoLocal(data)
         salvarConsumoLocal(
-            data = data,
-            kcal = atual.kcal + kcal,
+            data      = data,
+            kcal      = atual.kcal + kcal,
             proteinaG = atual.proteinaG + proteinaG,
-            carboG = atual.carboG + carboG,
-            gorduraG = atual.gorduraG + gorduraG,
+            carboG    = atual.carboG + carboG,
+            gorduraG  = atual.gorduraG + gorduraG,
         )
     }
 
-    suspend fun carregarConsumoLocal(data: String = LocalDate.now().toString()): ConsumoLocal {
-        val entity = dao.getConsumoDiario(data)
-        return if (entity != null) {
-            ConsumoLocal(
-                data = entity.data,
-                kcal = entity.kcal,
-                proteinaG = entity.proteinaG,
-                carboG = entity.carboG,
-                gorduraG = entity.gorduraG,
-                atualizadoEm = entity.atualizadoEm
-            )
-        } else {
-            ConsumoLocal(data, 0.0, 0.0, 0.0, 0.0, 0)
-        }
-    }
+    suspend fun carregarConsumoLocal(data: String = LocalDate.now().toString()): ConsumoLocal =
+        dao.getConsumoDiario(data)?.toConsumoLocal()
+            ?: ConsumoLocal(data, 0.0, 0.0, 0.0, 0.0, 0)
 
-    suspend fun temRegistroLocal(data: String = LocalDate.now().toString()): Boolean {
-        return dao.getConsumoDiario(data) != null
-    }
 
-    // ── Histórico ─────────────────────────────────────────────────────────────
+    //Histórico
 
     suspend fun lerHistorico7Dias(): List<ConsumoLocal> {
-        val hoje = LocalDate.now()
-        val datas = (0..6).map { hoje.minusDays(it.toLong()).toString() }
+        val hoje   = LocalDate.now()
+        val datas  = (0..6).map { hoje.minusDays(it.toLong()).toString() }
         val entities = dao.getConsumosPorDatas(datas).associateBy { it.data }
 
         return datas.map { d ->
-            val entity = entities[d]
-            if (entity != null) {
-                ConsumoLocal(entity.data, entity.kcal, entity.proteinaG, entity.carboG, entity.gorduraG, entity.atualizadoEm)
-            } else {
-                ConsumoLocal(d, 0.0, 0.0, 0.0, 0.0, 0)
-            }
+            entities[d]?.toConsumoLocal() ?: ConsumoLocal(d, 0.0, 0.0, 0.0, 0.0, 0)
         }.reversed()
     }
 
@@ -259,10 +223,7 @@ class ConsumoRepository(context: Context) {
         val hoje = LocalDate.now()
         return (6 downTo 0).map { diasAtras ->
             val data = hoje.minusDays(diasAtras.toLong()).toString()
-            ConsumoCompleto(
-                consumo = carregarConsumoLocal(data),
-                listas = carregarListas(data),
-            )
+            ConsumoCompleto(consumo = carregarConsumoLocal(data), listas = carregarListas(data))
         }
     }
 }

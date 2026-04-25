@@ -12,7 +12,6 @@ import com.explosionlab.nutriengine.core.data.local.entity.ListaEntity
 @Dao
 interface ConsumoDao {
 
-    // --- Consumo Diário Agregado ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun inserirConsumoDiario(consumo: ConsumoDiarioEntity)
 
@@ -22,7 +21,6 @@ interface ConsumoDao {
     @Query("SELECT * FROM consumo_diario WHERE data IN (:datas) ORDER BY data ASC")
     suspend fun getConsumosPorDatas(datas: List<String>): List<ConsumoDiarioEntity>
 
-    // --- Listas e Alimentos (Relacional) ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun inserirLista(lista: ListaEntity)
 

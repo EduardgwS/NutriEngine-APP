@@ -3,27 +3,29 @@ package com.explosionlab.nutriengine.core.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.explosionlab.nutriengine.features.health.HealthConnectIntroScreen
-import com.explosionlab.nutriengine.features.home.HomeScreen
 import com.explosionlab.nutriengine.core.common.AppViewModel
 import com.explosionlab.nutriengine.core.designsystem.components.BottomBar
 import com.explosionlab.nutriengine.core.designsystem.components.MenuItemData
 import com.explosionlab.nutriengine.core.designsystem.components.NutriTab
 import com.explosionlab.nutriengine.core.designsystem.components.TopBar
-import com.explosionlab.nutriengine.features.settings.ConfiguracoesScreen
+import com.explosionlab.nutriengine.features.health.HealthConnectIntroScreen
+import com.explosionlab.nutriengine.features.home.HomeScreen
 import com.explosionlab.nutriengine.features.home.HomeViewModel
 import com.explosionlab.nutriengine.features.login.LoginScreen
+import com.explosionlab.nutriengine.features.market.MercadoViewModel
 import com.explosionlab.nutriengine.features.megumi.MegumiScreen
 import com.explosionlab.nutriengine.features.megumi.MegumiViewModel
-import com.explosionlab.nutriengine.features.market.MercadoViewModel
 import com.explosionlab.nutriengine.features.profile.ConhecerPerfilScreen
-import com.explosionlab.nutriengine.features.search.PesquisarScreen
 import com.explosionlab.nutriengine.features.report.RelatorioScreen
+import com.explosionlab.nutriengine.features.search.PesquisarScreen
+import com.explosionlab.nutriengine.features.settings.ConfiguracoesScreen
 
 
 @Composable

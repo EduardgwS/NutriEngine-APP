@@ -45,7 +45,7 @@ class MercadoRepository(private val authRepository: AuthRepository) {
 
     private val TAG        = "MercadoRepository"
     private val httpClient = NetworkModule.httpClient
-    private val backendUrl = AuthRepository.BACKEND_URL
+    private val backendUrl = NetworkModule.BACKEND_URL
 
     // ── Recomendações ─────────────────────────────────────────────────────────
 

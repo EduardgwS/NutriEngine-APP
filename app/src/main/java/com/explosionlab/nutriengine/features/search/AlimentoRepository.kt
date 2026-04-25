@@ -18,7 +18,7 @@ class AlimentoRepository(private val authRepository: AuthRepository) {
 
     private val TAG        = "AlimentoRepository"
     private val httpClient = NetworkModule.httpClient
-    private val backendUrl = AuthRepository.BACKEND_URL
+    private val backendUrl = NetworkModule.BACKEND_URL
 
     suspend fun pesquisar(query: String): List<Alimento> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()

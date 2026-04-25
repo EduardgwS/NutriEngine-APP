@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
 import com.explosionlab.nutriengine.core.data.repository.PerfilRepository
@@ -18,7 +19,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val perfilRepo = PerfilRepository(application)
     private val prefs      = application.getSharedPreferences("nutriengine_prefs", Context.MODE_PRIVATE)
 
-    // ── Tema ──────────────────────────────────────────────────────────────────
+    //Temas
 
     var tema by mutableStateOf(
         TemaApp.valueOf(prefs.getString("tema_app", TemaApp.SISTEMA.name) ?: TemaApp.SISTEMA.name)
@@ -27,10 +28,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun atualizarTema(novoTema: TemaApp) {
         tema = novoTema
-        prefs.edit().putString("tema_app", novoTema.name).apply()
+        prefs.edit { putString("tema_app", novoTema.name) }
     }
 
-    // ── Roteamento inicial ────────────────────────────────────────────────────
+    //Sessão
 
     val telaInicial: String get() = when {
         !authRepo.estaLogado()       -> "login"
@@ -40,21 +41,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun perfilCompleto(): Boolean = perfilRepo.perfilCompleto()
 
-    // ── Sessão ────────────────────────────────────────────────────────────────
-
     fun logout() {
         authRepo.limparToken()
     }
 
-    fun limparTodosDados() {
-        getApplication<Application>()
-            .getSharedPreferences("nutriengine_prefs", Context.MODE_PRIVATE)
-            .edit().clear().apply()
-
-        getApplication<Application>()
-            .getSharedPreferences("nutricart_consumo", Context.MODE_PRIVATE)
-            .edit().clear().apply()
-
-        authRepo.limparToken()
-    }
 }

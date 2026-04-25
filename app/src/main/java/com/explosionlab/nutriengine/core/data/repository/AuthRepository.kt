@@ -3,10 +3,12 @@ package com.explosionlab.nutriengine.core.data.repository
 import android.app.Activity
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import com.explosionlab.nutriengine.R
 import com.explosionlab.nutriengine.core.di.NetworkModule
 import com.explosionlab.nutriengine.core.model.ResultadoLogin
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -20,27 +22,23 @@ import org.json.JSONObject
 
 class AuthRepository(private val context: Context) {
 
-    private val TAG           = "AuthRepository"
-    private val PREFS_NAME    = "nutriengine_prefs"
-    private val KEY_JWT       = "jwt_token"
-    private val KEY_NAME      = "user_name"
-    private val WEB_CLIENT_ID = context.getString(
-        context.resources.getIdentifier("web_client_id", "string", context.packageName)
-    )
-
+    private val webClientId = context.getString(R.string.web_client_id)
     private val httpClient = NetworkModule.httpClient
 
     companion object {
-        const val BACKEND_URL = "https://nutriengine.explosionlab.com"
+        private const val TAG        = "AuthRepository"
+        private const val PREFS_NAME = "nutriengine_prefs"
+        private const val KEY_JWT    = "jwt_token"
+        private const val KEY_NAME   = "user_name"
     }
 
-    // ── Token (SharedPreferences) ──────────────────────────────────────────────
+    //Tokens
 
     fun salvarToken(token: String, name: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .putString(KEY_JWT, token)
-            .putString(KEY_NAME, name)
-            .apply()
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
+            putString(KEY_JWT, token)
+                .putString(KEY_NAME, name)
+        }
     }
 
     fun carregarToken(): String? =
@@ -49,32 +47,22 @@ class AuthRepository(private val context: Context) {
 
     fun carregarNome(): String =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_NAME, "") ?: ""
+            .getString(KEY_NAME, "")!! // ou simplesmente confiar no default
 
     fun limparToken() {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().clear().apply()
+            .edit { clear() }
     }
 
     fun estaLogado(): Boolean = carregarToken() != null
 
-    // ── Login Google ───────────────────────────────────────────────────────────
+    //Login Google
 
-    /**
-     * Executa o fluxo completo de login:
-     *  1. Abre o seletor de conta Google via Credential Manager
-     *  2. Obtém o ID Token
-     *  3. Envia ao backend → recebe JWT próprio
-     *  4. Salva o JWT localmente
-     *
-     * Recebe a Activity como parâmetro porque o Credential Manager
-     * precisa de um contexto de Activity para exibir o seletor de contas.
-     */
     suspend fun fazerLoginGoogle(activity: Activity): ResultadoLogin {
         return try {
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(WEB_CLIENT_ID)
+                .setServerClientId(webClientId)
                 .setAutoSelectEnabled(false)
                 .build()
 
@@ -82,20 +70,22 @@ class AuthRepository(private val context: Context) {
                 .addCredentialOption(googleIdOption)
                 .build()
 
-            val result = CredentialManager.Companion.create(activity)
+            val result = CredentialManager.create(activity)
                 .getCredential(context = activity, request = request)
 
             val credential = result.credential
             if (credential !is CustomCredential ||
-                credential.type != GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             ) return ResultadoLogin(false, mensagem = "Tipo de credencial inesperado.")
 
-            val idToken = GoogleIdTokenCredential.Companion.createFrom(credential.data).idToken
+            val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
             enviarTokenAoBackend(idToken)
 
-        } catch (e: GetCredentialException) {
-            Log.e(TAG, "Credential Manager: ${e.message}")
-            ResultadoLogin(false, mensagem = "Não foi possível fazer login. Tente novamente.")
+        }
+        catch (e: NoCredentialException) {
+            Log.e(TAG, "Usuário sem conta: ${e.message}")
+            ResultadoLogin(false, mensagem = "Nenhuma conta Google encontrada no dispositivo.")
+
         } catch (e: Exception) {
             Log.e(TAG, "Erro inesperado: ${e.message}")
             ResultadoLogin(false, mensagem = "Erro: ${e.message}")
@@ -109,12 +99,12 @@ class AuthRepository(private val context: Context) {
                     .toString().toRequestBody("application/json".toMediaType())
 
                 val request = Request.Builder()
-                    .url("$BACKEND_URL/auth/google/android")
+                    .url("${NetworkModule.BACKEND_URL}/auth/google/android")
                     .post(body)
                     .build()
 
                 httpClient.newCall(request).execute().use { response ->
-                    val respBody = response.body?.string() ?: ""
+                    val respBody = response.body.string()
                     if (response.isSuccessful) {
                         val json = JSONObject(respBody)
                         val jwt = json.getString("token")
@@ -130,7 +120,7 @@ class AuthRepository(private val context: Context) {
                 Log.e(TAG, "Erro de conexão: ${e.message}")
                 ResultadoLogin(
                     false,
-                    mensagem = "O servidor está DESLIGADO\nPeça para o Eduard ligar se quiser testar o app\n\n\nSim, servidor custa caro"
+                    mensagem = "Erro ao acessar o servidor do NutriEngine\nVerifique sua conexão e tente novamente."
                 )
             }
         }

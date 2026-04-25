@@ -2,7 +2,7 @@ package com.explosionlab.nutriengine.core.designsystem
 
 import androidx.compose.ui.graphics.Color
 
-// ── Cor principal do app ───────────────────────────────────────────────────────
+//Cor principal
 val NutriGreen = Color(0xFF4CAF50)
 
 

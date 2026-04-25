@@ -139,7 +139,7 @@ data class Perfil(
         else       -> "Majin Boo"
     }
 
-    /** Taxa Metabólica Basal — calorias em repouso absoluto (Mifflin-St Jeor). */
+    //Taxa Metabólica Basal (Mifflin-St Jeor)
     val tmb: Double get() {
         if (peso <= 0 || altura <= 0 || idade <= 0) return 0.0
         return when (sexo) {
@@ -149,11 +149,11 @@ data class Perfil(
         }
     }
 
-    /** Gasto Energético Total — calorias para manter o peso atual (TMB × fator de atividade). */
+    //Gasto calórico total
     val gastoEnergeticoTotal: Int get() =
         if (tmb > 0) (tmb * nivelAtividade.fator).toInt() else 0
 
-    /** Calorias diárias recomendadas com base no objetivo. */
+    //Calorias necessárias para atingir o objetivo
     val caloriasRecomendadas: Int get() = when {
         gastoEnergeticoTotal <= 0               -> 0
         objetivo == Objetivo.PERDER_PESO        -> (gastoEnergeticoTotal - 500).coerceAtLeast(1200)
@@ -161,6 +161,5 @@ data class Perfil(
         else                                    -> gastoEnergeticoTotal
     }
 
-    /** Diferença entre a meta e o GET (positivo = superávit, negativo = déficit). */
     val ajusteKcal: Int get() = caloriasRecomendadas - gastoEnergeticoTotal
 }

@@ -10,12 +10,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 
-/**
- * Agenda um [NutriCheckWorker] por slot de horário usando WorkManager.
- *
- * Cada worker roda a cada 24 horas com um atraso inicial calculado
- * para que a primeira execução caia no horário-alvo do dia.
- */
+//Agendador de notificações
 object NotificationScheduler {
 
     const val SLOT_MANHA  = "manha"    // 08:00
@@ -27,12 +22,10 @@ object NotificationScheduler {
     private val horarios = mapOf(
         SLOT_MANHA  to LocalTime.of(8,  0),
         SLOT_ALMOCO to LocalTime.of(12, 0),
-        SLOT_LANCHE to LocalTime.of(15, 51),
+        SLOT_LANCHE to LocalTime.of(15, 0),
         SLOT_JANTAR to LocalTime.of(19, 0),
         SLOT_NOITE  to LocalTime.of(21, 30),
     )
-
-    // ── Ativar todos os slots ─────────────────────────────────────────────────
 
     fun ativar(context: Context, policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE) {
         val wm = WorkManager.getInstance(context)
@@ -52,21 +45,16 @@ object NotificationScheduler {
         }
     }
 
-    // ── Desativar todos os slots ──────────────────────────────────────────────
 
     fun desativar(context: Context) {
         val wm = WorkManager.getInstance(context)
         horarios.keys.forEach { slot -> wm.cancelUniqueWork(tagDo(slot)) }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun tagDo(slot: String) = "nutri_notif_$slot"
 
-    /**
-     * Calcula quanto tempo falta até o próximo [horarioAlvo].
-     * Se o horário já passou hoje, retorna o tempo até amanhã no mesmo horário.
-     */
+    //Calcula quanto tempo falta até o próximo horário ativo
     private fun calcularAtraso(horarioAlvo: LocalTime): Duration {
         val agora       = LocalDateTime.now()
         var proxExec    = agora.toLocalDate().atTime(horarioAlvo)

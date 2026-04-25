@@ -1,22 +1,17 @@
 package com.explosionlab.nutriengine.core.data.repository
 
 import android.content.Context
+import androidx.core.content.edit
 import com.explosionlab.nutriengine.core.model.NivelAtividade
 import com.explosionlab.nutriengine.core.model.Objetivo
 import com.explosionlab.nutriengine.core.model.Perfil
 import com.explosionlab.nutriengine.core.model.Sexo
 import java.time.LocalDate
 
-/**
- * Fonte de verdade local para todos os dados do perfil do usuário.
- *
- * Peso e altura são sempre persistidos aqui, independente de o Health Connect
- * estar disponível ou ter permissões. O HC é apenas uma camada de sincronização
- * opcional — o app funciona completamente sem ele.
- */
+//Armazenamento dos dados do usuário
 class PerfilRepository(private val context: Context) {
 
-    private val PREFS_NAME = "nutriengine_prefs"
+    private val prefsName = "nutriengine_prefs"
 
     companion object {
         const val KEY_PERFIL_COMPLETO  = "perfil_completo"
@@ -29,7 +24,7 @@ class PerfilRepository(private val context: Context) {
         const val KEY_ALTURA           = "perfil_altura"            // Double em metros
     }
 
-    private fun prefs() = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private fun prefs() = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 
     fun perfilCompleto(): Boolean = prefs().getBoolean(KEY_PERFIL_COMPLETO, false)
 
@@ -42,10 +37,10 @@ class PerfilRepository(private val context: Context) {
     fun carregarAltura(): Double = Double.fromBits(prefs().getLong(KEY_ALTURA, 0L))
 
     fun salvarMedidas(peso: Double, altura: Double) {
-        prefs().edit()
-            .putLong(KEY_PESO,   peso.toBits())
-            .putLong(KEY_ALTURA, altura.toBits())
-            .apply()
+        prefs().edit {
+            putLong(KEY_PESO, peso.toBits())
+                .putLong(KEY_ALTURA, altura.toBits())
+        }
     }
 
     // ── Perfil completo ────────────────────────────────────────────────────────
@@ -59,16 +54,16 @@ class PerfilRepository(private val context: Context) {
         peso:           Double,
         altura:         Double,
     ) {
-        prefs().edit()
-            .putString(KEY_NOME,             nome.trim())
-            .putString(KEY_DATA_NASCIMENTO,  dataNascimento.toString())
-            .putString(KEY_SEXO,             sexo.name)
-            .putString(KEY_OBJETIVO,         objetivo.name)
-            .putString(KEY_NIVEL_ATIVIDADE,  nivelAtividade.name)
-            .putLong(KEY_PESO,               peso.toBits())
-            .putLong(KEY_ALTURA,             altura.toBits())
-            .putBoolean(KEY_PERFIL_COMPLETO, true)
-            .apply()
+        prefs().edit {
+            putString(KEY_NOME, nome.trim())
+                .putString(KEY_DATA_NASCIMENTO, dataNascimento.toString())
+                .putString(KEY_SEXO, sexo.name)
+                .putString(KEY_OBJETIVO, objetivo.name)
+                .putString(KEY_NIVEL_ATIVIDADE, nivelAtividade.name)
+                .putLong(KEY_PESO, peso.toBits())
+                .putLong(KEY_ALTURA, altura.toBits())
+                .putBoolean(KEY_PERFIL_COMPLETO, true)
+        }
     }
 
     /**

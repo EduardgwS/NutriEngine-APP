@@ -5,16 +5,12 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.explosionlab.nutriengine.core.data.repository.ConsumoRepository
-import com.explosionlab.nutriengine.core.model.Objetivo
 import com.explosionlab.nutriengine.core.data.repository.PerfilRepository
+import com.explosionlab.nutriengine.core.model.Objetivo
 import java.time.LocalDate
 
-/**
- * Worker que roda em background em horários específicos, lê o estado
- * nutricional do dia e exibe a notificação mais relevante.
- *
- * O [KEY_SLOT] passado nos inputData determina qual lógica usar.
- */
+//Roda em background em horários específicos. Le o estado nutricional do dia e exibe a notificação mais relevante.
+
 class NutriCheckWorker(
     private val ctx: Context,
     params:          WorkerParameters,
@@ -23,7 +19,7 @@ class NutriCheckWorker(
     companion object {
         const val KEY_SLOT = "slot"
 
-        // IDs de notificação — um por slot, para não empilhar
+        // IDs de notificação
         const val ID_MANHA  = 1001
         const val ID_ALMOCO = 1002
         const val ID_LANCHE = 1003
@@ -41,7 +37,7 @@ class NutriCheckWorker(
         val perfil  = perfilRepo.carregarPerfil()
         val consumo = consumoRepo.carregarConsumoLocal(LocalDate.now().toString())
 
-        // Metas de macros
+        //Metas de macros
         val kcalMeta  = perfil.caloriasRecomendadas.toDouble()
         Log.d("NutriCheckWorker", "Meta de calorias: $kcalMeta")
 
@@ -52,23 +48,27 @@ class NutriCheckWorker(
         }
         val protMeta  = kcalMeta * pProt  / 4.0
         val carboMeta = kcalMeta * pCarbo / 4.0
+        val gordMeta  = kcalMeta * pGord  / 9.0
 
         val kcalConsumido  = consumo.kcal
         val protConsumida  = consumo.proteinaG
         val carboConsumido = consumo.carboG
+        val gordConsumida = consumo.gorduraG
 
         val gapKcal  = (kcalMeta  - kcalConsumido).coerceAtLeast(0.0)
         val gapProt  = (protMeta  - protConsumida).coerceAtLeast(0.0)
         val gapCarbo = (carboMeta - carboConsumido).coerceAtLeast(0.0)
+        val gapGord = (gordMeta - gordConsumida).coerceAtLeast(0.0)
 
-        val pctKcal = if (kcalMeta > 0) kcalConsumido / kcalMeta else 0.0
+            val pctKcal = if (kcalMeta > 0) kcalConsumido / kcalMeta else 0.0
 
-        // Não notifica se perfil não está configurado
+        //Impede a notificação se não tiver perfil configurado
         if (kcalMeta <= 0) {
             Log.w("NutriCheckWorker", "Worker abortado: kcalMeta <= 0. Perfil preenchido?")
             return Result.success()
         }
 
+        //Texto das notificações
         val (id, titulo, corpo, canal) = when (slot) {
 
             NotificationScheduler.SLOT_MANHA -> Quad(
@@ -107,6 +107,8 @@ class NutriCheckWorker(
                         "Você consumiu só %.0f%% da meta hoje. Bora comer alguma coisa?".format(pctKcal * 100)
                     gapProt > 25 ->
                         "Ainda faltam %.0fg de proteína. Um punhado de castanhas ou iogurte resolve!".format(gapProt)
+                    gapGord > 15 ->
+                        "Faltam gorduras boas! Que tal um pouco de abacate ou azeite no lanche?"
                     else ->
                         "Que tal uma fruta ou castanhas para manter a energia até o jantar?"
                 },

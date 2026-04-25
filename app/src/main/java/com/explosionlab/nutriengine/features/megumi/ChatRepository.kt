@@ -16,7 +16,7 @@ class ChatRepository(private val authRepository: AuthRepository) {
 
     private val TAG        = "ChatRepository"
     private val httpClient = NetworkModule.httpClient
-    private val backendUrl = AuthRepository.BACKEND_URL
+    private val backendUrl = NetworkModule.BACKEND_URL
 
     // ── Enviar mensagem ───────────────────────────────────────────────────────
 

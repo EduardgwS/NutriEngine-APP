@@ -1,5 +1,6 @@
 package com.explosionlab.nutriengine.core.di
 
+import com.explosionlab.nutriengine.core.network.NutriEngineApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.Interceptor
@@ -10,7 +11,8 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 object NetworkModule {
-    private const val BASE_URL = "https://nutriengine.explosionlab.com/"
+    const val BACKEND_URL = "https://nutriengine.explosionlab.com"
+    private val host = BACKEND_URL.removePrefix("https://")
     private val _servidorDisponivel = MutableStateFlow(true)
     val servidorDisponivel = _servidorDisponivel.asStateFlow()
 
@@ -19,16 +21,14 @@ object NetworkModule {
         try {
             val response = chain.proceed(request)
 
-            // Verifica especificamente o domínio do servidor do app
-            if (request.url.host == "nutriengine.explosionlab.com") {
-                // Servidor está disponível se não retornar erro de servidor (5xx)
+            //Verifica especificamente se o domínio do aplicativo está no ar
+            if (request.url.host == host) {
                 _servidorDisponivel.value = response.code < 500
             }
 
             response
         } catch (e: IOException) {
-            // Se falhar a conexão com o domínio específico
-            if (request.url.host == "nutriengine.explosionlab.com") {
+            if (request.url.host == host) {
                 _servidorDisponivel.value = false
             }
             throw e
@@ -46,13 +46,13 @@ object NetworkModule {
 
     val retrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(BACKEND_URL)
             .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
-    val api: com.explosionlab.nutriengine.core.network.NutriEngineApi by lazy {
-        retrofit.create(com.explosionlab.nutriengine.core.network.NutriEngineApi::class.java)
+    val api: NutriEngineApi by lazy {
+        retrofit.create(NutriEngineApi::class.java)
     }
 }
