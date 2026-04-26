@@ -1,7 +1,8 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.explosionlab.nutriengine.features.home
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.core.animateFloatAsState
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -15,12 +16,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.KebabDining
 import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,6 +46,7 @@ import com.explosionlab.nutriengine.core.designsystem.NutriGreen
 import com.explosionlab.nutriengine.core.model.RecomendacaoReceita
 import com.explosionlab.nutriengine.features.market.MercadoViewModel
 import kotlin.math.min
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,18 +90,18 @@ fun HomeScreen(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        // ── Barra de calorias ──────────────────────────────────────────────────
+        //Barra de calorias
         CaloriasProgressBar(
             caloriasHoje         = caloriasHoje,
             caloriasRecomendadas = caloriasRecomendadas,
         )
 
-        // ── Meta do dia — gamificação ──────────────────────────────────────────
+        //Meta do dia
         if (macroState.proteinaMeta > 0) {
             MetaDoDiaCard(macroState = macroState, dicaMacro = dicaMacro)
         }
 
-        // ── Receita do dia ─────────────────────────────────────────────────────
+        //Receita do dia
         recomendacaoReceita?.let { receita ->
             ReceitaRecomendadaCard(
                 receita = receita,
@@ -107,7 +109,7 @@ fun HomeScreen(
             )
         }
 
-        // ── Recomendações de compras ───────────────────────────────────────────
+        //Recomendação de compras dos mercados parceiros
         SecaoMercado(
             recomendacoes = recomendacoes,
             parceiros     = parceiros,
@@ -117,7 +119,7 @@ fun HomeScreen(
         )
     }
 
-    // ── BottomSheet da receita ─────────────────────────────────────────────────
+    //BottomSheet das receitas do dia
     receitaDetalhe?.let { receita ->
         ModalBottomSheet(
             onDismissRequest = { receitaDetalhe = null },
@@ -127,7 +129,7 @@ fun HomeScreen(
         }
     }
 
-    // ── BottomSheet do produto ─────────────────────────────────────────────────
+    //BottomSheet dos produtos
     produtoDetalhe?.let { produto ->
         val context = LocalContext.current
         ModalBottomSheet(
@@ -146,7 +148,6 @@ fun HomeScreen(
     }
 }
 
-// ── Seção de mercado ──────────────────────────────────────────────────────────
 
 @Composable
 private fun SecaoMercado(
@@ -158,7 +159,6 @@ private fun SecaoMercado(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        // Cabeçalho
         Row(
             modifier              = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -217,7 +217,6 @@ private fun SecaoMercado(
             }
 
             else -> {
-                // Motivo da recomendação (vem do primeiro item como texto geral)
                 val motivo = recomendacoes.firstOrNull()?.motivo.orEmpty()
                 if (motivo.isNotBlank()) {
                     Text(
@@ -227,7 +226,6 @@ private fun SecaoMercado(
                     )
                 }
 
-                // Carrossel horizontal de produtos
                 Row(
                     modifier            = Modifier
                         .fillMaxWidth()
@@ -244,7 +242,6 @@ private fun SecaoMercado(
             }
         }
 
-        // Chips de parceiros
         if (parceiros.isNotEmpty()) {
             Text(
                 "Mercados parceiros",
@@ -264,7 +261,7 @@ private fun SecaoMercado(
                         onClick = {
                             runCatching {
                                 context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(parceiro.siteUrl))
+                                    Intent(Intent.ACTION_VIEW, parceiro.siteUrl.toUri())
                                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
                             }
@@ -320,9 +317,9 @@ private fun CardProduto(
                     )
                 }
 
-                // Badge de desconto sobre a imagem
+                // Desconto
                 if (temDesconto) {
-                    val pct = ((1.0 - produto.precoAtual / produto.precoAntigo!!) * 100).toInt()
+                    val pct = ((1.0 - produto.precoAtual / produto.precoAntigo) * 100).toInt()
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -365,7 +362,7 @@ private fun CardProduto(
                 // Preço
                 if (temDesconto) {
                     Text(
-                        "R$ %.2f".format(produto.precoAntigo!!).replace(".", ","),
+                        "R$ %.2f".format(produto.precoAntigo).replace(".", ","),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textDecoration = TextDecoration.LineThrough,
@@ -395,13 +392,6 @@ private fun CardProduto(
 }
 
 // ── Meta do dia — gamificação ─────────────────────────────────────────────────
-
-private data class DicaNutricional(
-    val icone:    ImageVector,
-    val titulo:   String,
-    val corpo:    String,
-    val corTema:  Color? = null,
-)
 
 @Composable
 private fun MetaDoDiaCard(macroState: MacroState, dicaMacro: com.explosionlab.nutriengine.core.model.DicaMacro?) {
@@ -695,7 +685,8 @@ fun ProdutoDetalheSheet(
             colors    = ButtonDefaults.buttonColors(containerColor = NutriGreen),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
         ) {
-            Icon(Icons.Default.OpenInNew, null, tint = Color.White,
+            Icon(
+                Icons.AutoMirrored.Filled.OpenInNew, null, tint = Color.White,
                 modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text("Ver no mercado", color = Color.White, fontWeight = FontWeight.Bold)

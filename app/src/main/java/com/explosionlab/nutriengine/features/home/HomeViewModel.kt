@@ -18,13 +18,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-/** Consumo e meta de macros do dia — usado para gamificação na HomeScreen. */
+//Consumo dos macronutrientes do dia
 data class MacroState(
-    // consumido hoje
     val proteinaConsumida:    Double = 0.0,
     val carboConsumido:       Double = 0.0,
     val gorduraConsumida:     Double = 0.0,
-    // metas diárias
     val proteinaMeta:         Double = 0.0,
     val carboMeta:            Double = 0.0,
     val gorduraMeta:          Double = 0.0,
@@ -33,7 +31,6 @@ data class MacroState(
     val carboGap:     Double get() = (carboMeta     - carboConsumido).coerceAtLeast(0.0)
     val gorduraGap:   Double get() = (gorduraMeta   - gorduraConsumida).coerceAtLeast(0.0)
 
-    /** Macro mais deficitária em relação à sua meta (0=proteína, 1=carbo, 2=gordura, -1=tudo ok). */
     val maiorDeficit: Int get() {
         if (proteinaMeta <= 0) return -1
         val pctProt  = proteinaGap  / proteinaMeta
@@ -83,7 +80,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     nomeGoogleFallback = authRepository.carregarNome()
                 )
 
-                // ── Consumo de hoje ────────────────────────────────────────────
+
                 var kcalHoje  = 0.0
                 var protHoje  = 0.0
                 var carboHoje = 0.0
@@ -114,7 +111,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     gordHoje  = local.gorduraG
                 }
 
-                // ── Metas de macros ────────────────────────────────────────────
+                //Meta dos Macronutrientes
                 val kcalMeta = perfil.caloriasRecomendadas.toDouble()
                 val (pCarbo, pProt, pGord) = when (perfil.objetivo) {
                     Objetivo.GANHAR_MUSCULOS      -> Triple(0.45, 0.30, 0.25)
@@ -135,7 +132,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 _macroState.value = novoMacroState
 
-                // Buscar receita do dia via API
+                //Busca da receita do dia
                 viewModelScope.launch {
                     try {
                         val response = NetworkModule.api.getReceitaDoDia(perfil.objetivo.name)
@@ -148,7 +145,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                // Buscar dica de macros via API (usando o estado recém-atualizado)
                 viewModelScope.launch {
                     try {
                         val response = NetworkModule.api.getDicaMacro(
