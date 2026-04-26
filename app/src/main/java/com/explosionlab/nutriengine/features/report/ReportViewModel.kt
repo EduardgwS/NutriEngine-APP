@@ -5,9 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
 import com.explosionlab.nutriengine.core.data.repository.ConsumoRepository
-import com.explosionlab.nutriengine.features.health.HealthConnectRepository
-import com.explosionlab.nutriengine.core.model.Perfil
 import com.explosionlab.nutriengine.core.data.repository.PerfilRepository
+import com.explosionlab.nutriengine.core.model.Perfil
+import com.explosionlab.nutriengine.features.health.HealthConnectRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,14 +36,10 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
         observarMudancas()
     }
 
-    // ── Carregamento ──────────────────────────────────────────────────────────
+    //Carregar
 
     fun recarregarRelatorio() = carregarDados(silencioso = true)
 
-    /**
-     * Carrega os dados do relatório.
-     * @param silencioso Se verdadeiro, não ativa o estado de 'carregando'.
-     */
     private fun carregarDados(silencioso: Boolean = false) {
         viewModelScope.launch {
             if (!silencioso) {
@@ -65,7 +61,7 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
                     carregando             = false,
                 )
 
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 tratarErroNoCarregamento()
             }
         }
@@ -124,8 +120,7 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // ── Edição — rápida (sem loading indicator) ───────────────────────────────
-
+    //Edição
     fun editarAlimento(
         data:            String,
         listaId:         String,

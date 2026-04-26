@@ -19,12 +19,12 @@ import com.explosionlab.nutriengine.features.health.HealthConnectOnboardingScree
 import com.explosionlab.nutriengine.features.home.HomeScreen
 import com.explosionlab.nutriengine.features.home.HomeViewModel
 import com.explosionlab.nutriengine.features.login.LoginScreen
-import com.explosionlab.nutriengine.features.market.MercadoViewModel
+import com.explosionlab.nutriengine.features.market.MarketViewModel
 import com.explosionlab.nutriengine.features.megumi.MegumiScreen
 import com.explosionlab.nutriengine.features.megumi.MegumiViewModel
 import com.explosionlab.nutriengine.features.profile.ConhecerPerfilScreen
 import com.explosionlab.nutriengine.features.report.RelatorioScreen
-import com.explosionlab.nutriengine.features.search.PesquisarScreen
+import com.explosionlab.nutriengine.features.search.SearchScreen
 import com.explosionlab.nutriengine.features.settings.ConfiguracoesScreen
 
 
@@ -33,7 +33,7 @@ fun NutriNavGraph(
     appViewModel:     AppViewModel,
     homeViewModel:    HomeViewModel,
     megumiViewModel:  MegumiViewModel,
-    mercadoViewModel: MercadoViewModel,
+    marketViewModel: MarketViewModel,
 ) {
     val navController = rememberNavController()
 
@@ -142,12 +142,12 @@ fun NutriNavGraph(
                 HomeScreen(
                     innerPadding = innerPadding,
                     viewModel = homeViewModel,
-                    mercadoViewModel = mercadoViewModel,
+                    marketViewModel = marketViewModel,
                 )
             }
 
             composable(NutriTab.PESQUISAR.rota) {
-                PesquisarScreen(innerPadding = innerPadding)
+                SearchScreen(innerPadding = innerPadding)
             }
 
             composable(NutriTab.MEGUMI.rota) {

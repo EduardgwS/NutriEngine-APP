@@ -2,28 +2,73 @@
 
 package com.explosionlab.nutriengine.features.home
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import androidx.compose.ui.platform.LocalContext as CoilContext
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.KebabDining
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Opacity
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.SetMeal
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,25 +80,30 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.explosionlab.nutriengine.features.market.Parceiro
-import com.explosionlab.nutriengine.features.market.RecomendacaoProduto
-import com.explosionlab.nutriengine.features.health.DadoCard
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.explosionlab.nutriengine.core.designsystem.NutriGreen
 import com.explosionlab.nutriengine.core.model.RecomendacaoReceita
-import com.explosionlab.nutriengine.features.market.MercadoViewModel
+import com.explosionlab.nutriengine.core.notifications.NotificationScheduler
+import com.explosionlab.nutriengine.features.health.DadoCard
+import com.explosionlab.nutriengine.features.market.MarketViewModel
+import com.explosionlab.nutriengine.features.market.Parceiro
+import com.explosionlab.nutriengine.features.market.RecomendacaoProduto
 import kotlin.math.min
-import androidx.core.net.toUri
+import androidx.compose.ui.platform.LocalContext as CoilContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     innerPadding:    PaddingValues  = PaddingValues(),
     viewModel:       HomeViewModel,
-    mercadoViewModel: MercadoViewModel,
+    marketViewModel: MarketViewModel,
 ) {
     val caloriasHoje         by viewModel.caloriasHoje.collectAsStateWithLifecycle()
     val caloriasRecomendadas by viewModel.caloriasRecomendadas.collectAsStateWithLifecycle()
@@ -61,9 +111,39 @@ fun HomeScreen(
     val macroState           by viewModel.macroState.collectAsStateWithLifecycle()
     val dicaMacro            by viewModel.dicaMacro.collectAsStateWithLifecycle()
 
-    val recomendacoes by mercadoViewModel.recomendacoes.collectAsStateWithLifecycle()
-    val parceiros     by mercadoViewModel.parceiros.collectAsStateWithLifecycle()
-    val carregando    by mercadoViewModel.carregando.collectAsStateWithLifecycle()
+    val recomendacoes by marketViewModel.recomendacoes.collectAsStateWithLifecycle()
+    val parceiros     by marketViewModel.parceiros.collectAsStateWithLifecycle()
+    val carregando    by marketViewModel.carregando.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            context.getSharedPreferences("nutriengine_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("notificacoes_ativas", true)
+                .apply()
+            NotificationScheduler.ativar(context)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            val prefs = context.getSharedPreferences("nutriengine_prefs", Context.MODE_PRIVATE)
+            val jaSolicitou = prefs.getBoolean("permissao_notificacao_solicitada", false)
+
+            if (!hasPermission && !jaSolicitou) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                prefs.edit().putBoolean("permissao_notificacao_solicitada", true).apply()
+            }
+        }
+    }
 
     var receitaDetalhe  by remember { mutableStateOf<RecomendacaoReceita?>(null) }
     var produtoDetalhe  by remember { mutableStateOf<RecomendacaoProduto?>(null) }
@@ -75,7 +155,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.recarregarCaloriasHome()
-                mercadoViewModel.carregarDados()
+                marketViewModel.carregarDados()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -115,7 +195,7 @@ fun HomeScreen(
             parceiros     = parceiros,
             carregando    = carregando,
             onVerProduto  = { produtoDetalhe = it },
-            onAtualizar   = { mercadoViewModel.carregarDados(force = true) },
+            onAtualizar   = { marketViewModel.carregarDados(force = true) },
         )
     }
 
@@ -140,7 +220,7 @@ fun HomeScreen(
                 produto  = produto,
                 onFechar = { produtoDetalhe = null },
                 onComprar = {
-                    mercadoViewModel.abrirProduto(produto.urlCompra, context)
+                    marketViewModel.abrirProduto(produto.urlCompra, context)
                     produtoDetalhe = null
                 },
             )

@@ -6,12 +6,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
 import com.explosionlab.nutriengine.core.data.repository.ConsumoRepository
-import com.explosionlab.nutriengine.features.health.HealthConnectRepository
+import com.explosionlab.nutriengine.core.data.repository.PerfilRepository
 import com.explosionlab.nutriengine.core.di.NetworkModule
 import com.explosionlab.nutriengine.core.model.DicaMacro
 import com.explosionlab.nutriengine.core.model.Objetivo
 import com.explosionlab.nutriengine.core.model.RecomendacaoReceita
-import com.explosionlab.nutriengine.core.data.repository.PerfilRepository
+import com.explosionlab.nutriengine.features.health.HealthConnectRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -121,7 +121,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
                 _caloriasHoje.value         = kcalHoje
                 _caloriasRecomendadas.value = perfil.caloriasRecomendadas
-                
+
                 val novoMacroState = MacroState(
                     proteinaConsumida = protHoje,
                     carboConsumido    = carboHoje,

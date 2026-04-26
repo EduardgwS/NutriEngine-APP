@@ -3,22 +3,22 @@ package com.explosionlab.nutriengine.features.market
 import android.app.Application
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.Log
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
-import com.explosionlab.nutriengine.core.model.Objetivo
 import com.explosionlab.nutriengine.core.data.repository.ConsumoRepository
 import com.explosionlab.nutriengine.core.data.repository.PerfilRepository
+import com.explosionlab.nutriengine.core.model.Objetivo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import java.time.LocalDate
 
-class MercadoViewModel(application: Application) : AndroidViewModel(application) {
+class MarketViewModel(application: Application) : AndroidViewModel(application) {
 
     private val authRepo     = AuthRepository(application)
     private val perfilRepo   = PerfilRepository(application)
@@ -26,7 +26,7 @@ class MercadoViewModel(application: Application) : AndroidViewModel(application)
     private val mercadoRepo  = MercadoRepository(authRepo)
 
     private val prefs = application.getSharedPreferences("mercado_prefs", Context.MODE_PRIVATE)
-    private val LAST_UPDATE_KEY = "last_mercado_update"
+    private val lastUpdateKey = "last_mercado_update"
     private var isFirstLoadInSession = true
 
     private val _recomendacoes = MutableStateFlow<List<RecomendacaoProduto>>(emptyList())
@@ -46,7 +46,7 @@ class MercadoViewModel(application: Application) : AndroidViewModel(application)
     fun carregarDados(force: Boolean = false) {
         val agora      = System.currentTimeMillis()
         val cincoHoras = 5 * 60 * 60 * 1000L
-        val lastUpdate = prefs.getLong(LAST_UPDATE_KEY, 0L)
+        val lastUpdate = prefs.getLong(lastUpdateKey, 0L)
 
         val deveAtualizar = force || isFirstLoadInSession || (agora - lastUpdate > cincoHoras)
 
@@ -74,10 +74,10 @@ class MercadoViewModel(application: Application) : AndroidViewModel(application)
                 jobParceiros.join()
                 jobRecomendacoes.join()
 
-                prefs.edit().putLong(LAST_UPDATE_KEY, System.currentTimeMillis()).apply()
+                prefs.edit { putLong(lastUpdateKey, System.currentTimeMillis()) }
 
             } catch (e: Exception) {
-                Log.e("MercadoViewModel", "Erro: ${e.message}")
+                Log.e("MarketViewModel", "Erro: ${e.message}")
                 _erro.value = "Não foi possível carregar as recomendações."
             } finally {
                 _carregando.value = false
@@ -88,15 +88,15 @@ class MercadoViewModel(application: Application) : AndroidViewModel(application)
     fun abrirProduto(urlCompra: String, context: Context) {
         try {
             context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(urlCompra))
+                Intent(Intent.ACTION_VIEW, urlCompra.toUri())
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         } catch (e: Exception) {
-            Log.e("MercadoViewModel", "Erro ao abrir URL: ${e.message}")
+            Log.e("MarketViewModel", "Erro ao abrir URL: ${e.message}")
         }
     }
 
-    // ── Identificação de necessidades (Privacidade) ───────────────────────────
+    //Identificação de necessidades com base no perfil e consumo do dia
 
     private suspend fun identificarNecessidades(): List<String> {
         val perfil = perfilRepo.carregarPerfil(
@@ -104,7 +104,7 @@ class MercadoViewModel(application: Application) : AndroidViewModel(application)
         )
         val consumoHoje = consumoRepo.carregarConsumoLocal(LocalDate.now().toString())
 
-        // Cálculo local de metas
+        //Cálculo local de metas
         val kcalMeta = perfil.caloriasRecomendadas.toDouble()
         val (pCarbo, pProt, pGord) = when (perfil.objetivo) {
             Objetivo.GANHAR_MUSCULOS      -> Triple(0.45, 0.30, 0.25)
@@ -118,7 +118,7 @@ class MercadoViewModel(application: Application) : AndroidViewModel(application)
 
         val necessidades = mutableListOf<String>()
 
-        // Se faltar mais de 15% de um macro, adicionamos como necessidade
+        //Cria uma necessidade se faltar +15% de uma meta
         if ((protMeta  - consumoHoje.proteinaG) > protMeta  * 0.15) necessidades.add("ALTA_PROTEINA")
         if ((carboMeta - consumoHoje.carboG)    > carboMeta * 0.15) necessidades.add("CARBOIDRATO")
         if ((gordMeta  - consumoHoje.gorduraG)  > gordMeta  * 0.15) necessidades.add("GORDURA_BOA")

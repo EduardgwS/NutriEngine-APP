@@ -1,8 +1,8 @@
 package com.explosionlab.nutriengine.features.market
 
 import android.util.Log
-import com.explosionlab.nutriengine.core.di.NetworkModule
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
+import com.explosionlab.nutriengine.core.di.NetworkModule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -11,7 +11,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-// ── Modelos ───────────────────────────────────────────────────────────────────
 
 data class Parceiro(
     val id:      String,
@@ -28,26 +27,29 @@ data class RecomendacaoProduto(
     val nomeMercado: String,
     val logoMercado: String,
     val precoAtual:  Double,
-    val precoAntigo: Double?,   // null = sem desconto
+    val precoAntigo: Double?,
     val quantidadeG: Double,
-    val motivo:      String,    // "Faltam 115g de proteína hoje"
+    val motivo:      String,
     val urlCompra:   String,
-    val categoria:   String,    // "Proteína", "Carboidrato", "Gordura"
+    val categoria:   String,
     val kcal:         Double,
     val proteinas:    Double,
     val carboidratos: Double,
     val gorduras:     Double,
 )
 
-// ── Repositório ───────────────────────────────────────────────────────────────
+
 
 class MercadoRepository(private val authRepository: AuthRepository) {
 
-    private val TAG        = "MercadoRepository"
     private val httpClient = NetworkModule.httpClient
     private val backendUrl = NetworkModule.BACKEND_URL
 
-    // ── Recomendações ─────────────────────────────────────────────────────────
+    companion object {
+        private const val TAG = "MercadoRepository"
+    }
+
+    //Recomendações
 
     suspend fun buscarRecomendacoes(
         necessidades: List<String>
@@ -66,7 +68,7 @@ class MercadoRepository(private val authRepository: AuthRepository) {
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
-                val body  = response.body?.string() ?: return@withContext emptyList()
+                val body  = response.body.string()
                 val array = JSONObject(body).optJSONArray("recomendacoes") ?: JSONArray(body)
                 parseRecomendacoes(array)
             }
@@ -101,7 +103,7 @@ class MercadoRepository(private val authRepository: AuthRepository) {
             }.getOrNull()
         }
 
-    // ── Parceiros ─────────────────────────────────────────────────────────────
+    //Parceiros
 
     suspend fun listarParceiros(): List<Parceiro> = withContext(Dispatchers.IO) {
         val token = authRepository.carregarToken() ?: return@withContext emptyList()
@@ -114,7 +116,7 @@ class MercadoRepository(private val authRepository: AuthRepository) {
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
-                val body  = response.body?.string() ?: return@withContext emptyList()
+                val body  = response.body.string()
                 val array = JSONObject(body).optJSONArray("parceiros") ?: JSONArray(body)
                 (0 until array.length()).mapNotNull { i ->
                     runCatching {

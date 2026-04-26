@@ -54,7 +54,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             state = state.copy(isCarregando = true)
 
-            // 1. Carrega o que já está salvo no repositório local
+            //Carrega o que já estava salvo no repositório local
             val perfilSalvo = perfilRepo.carregarPerfil(nomeGoogleFallback = authRepo.carregarNome())
 
             state = state.copy(
@@ -67,7 +67,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
                 alturaInput    = if (perfilSalvo.altura > 0) "%.2f".format(perfilSalvo.altura) else ""
             )
 
-            // 2. Tenta complementar com dados do Health Connect se disponível
+            //Tenta complementar com os dados do Health connect se ele estiver disponível
             if (healthRepo.isDisponivel()) {
 
                 delay(600L)
@@ -137,12 +137,12 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
 
             perfilRepo.salvarPerfil(
                 nome           = nomeLimpo,
-                dataNascimento = dataNasc!!,
+                dataNascimento = dataNasc,
                 sexo           = state.sexo,
                 objetivo       = state.objetivo,
                 nivelAtividade = state.nivelAtividade,
-                peso           = peso!!,
-                altura         = altura!!,
+                peso           = peso,
+                altura         = altura,
             )
 
 

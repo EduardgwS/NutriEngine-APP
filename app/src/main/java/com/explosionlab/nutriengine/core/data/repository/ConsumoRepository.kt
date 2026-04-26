@@ -221,9 +221,12 @@ class ConsumoRepository(context: Context) {
 
     suspend fun lerHistoricoCompleto7Dias(): List<ConsumoCompleto> {
         val hoje = LocalDate.now()
-        return (6 downTo 0).map { diasAtras ->
+        return (0..6).map { diasAtras ->
             val data = hoje.minusDays(diasAtras.toLong()).toString()
-            ConsumoCompleto(consumo = carregarConsumoLocal(data), listas = carregarListas(data))
+            ConsumoCompleto(
+                consumo = carregarConsumoLocal(data),
+                listas = carregarListas(data).sortedByDescending { it.timestamp }
+            )
         }
     }
 }

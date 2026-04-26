@@ -70,7 +70,8 @@ fun TopBar(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Ícone do Aplicativo",
                 modifier = Modifier
-                    .size(35.dp)
+                    .size(35.dp),
+                tint = Color.White
             )
 
             Spacer(Modifier.width(8.dp))

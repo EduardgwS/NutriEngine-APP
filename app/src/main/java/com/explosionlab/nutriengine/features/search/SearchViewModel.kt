@@ -6,9 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.explosionlab.nutriengine.core.model.Alimento
-import com.explosionlab.nutriengine.core.data.repository.ConsumoRepository
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
+import com.explosionlab.nutriengine.core.data.repository.ConsumoRepository
+import com.explosionlab.nutriengine.core.model.Alimento
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,13 +16,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class PesquisarViewModel(application: Application) : AndroidViewModel(application) {
+class SearchViewModel(application: Application) : AndroidViewModel(application) {
 
     private val authRepo    = AuthRepository(application)
-    private val repo        = AlimentoRepository(authRepo)
+    private val repo        = FoodRepository(authRepo)
     private val consumoRepo = ConsumoRepository(application)
 
-    // ── Pesquisa ──────────────────────────────────────────────────────────────
+    //Pesquisa
 
     private val _resultados = MutableStateFlow<List<Alimento>>(emptyList())
     val resultados: StateFlow<List<Alimento>> = _resultados.asStateFlow()
@@ -36,7 +36,7 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
 
     private var jobPesquisa: Job? = null
 
-    // ── Lista de escolhidos ───────────────────────────────────────────────────
+    //Lista de escolhidos
 
     /**
      * Alimento selecionado pelo usuário com a quantidade em gramas.
@@ -58,12 +58,11 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
     val listaEscolhidos: StateFlow<List<AlimentoComQuantidade>> = _listaEscolhidos.asStateFlow()
 
     fun adicionarNaLista(alimento: Alimento, quantidadeG: Double = 100.0) {
-        _listaEscolhidos.value = _listaEscolhidos.value +
-                AlimentoComQuantidade(alimento, quantidadeG)
+        _listaEscolhidos.value += AlimentoComQuantidade(alimento, quantidadeG)
     }
 
     fun removerDaLista(item: AlimentoComQuantidade) {
-        _listaEscolhidos.value = _listaEscolhidos.value - item
+        _listaEscolhidos.value -= item
     }
 
     fun limparLista() {
@@ -95,7 +94,7 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // ── Identificação por imagem ──────────────────────────────────────────────
+    //Identificação por imagem
 
     var identificando        by mutableStateOf(false); private set
     var alimentoIdentificado by mutableStateOf<Alimento?>(null); private set
@@ -134,8 +133,7 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
         erroIdentificacao    = null
     }
 
-    // ── Pesquisa manual ───────────────────────────────────────────────────────
-
+    //Pesquisa manual
     fun onQueryChange(novo: String) {
         query         = novo
         semResultados = false
@@ -150,12 +148,6 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
             delay(400)
             executarPesquisa(novo)
         }
-    }
-
-    fun pesquisar(q: String = query) {
-        if (q.isBlank()) return
-        jobPesquisa?.cancel()
-        jobPesquisa = viewModelScope.launch { executarPesquisa(q) }
     }
 
     private suspend fun executarPesquisa(q: String) {
@@ -177,6 +169,7 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             val historico = consumoRepo.lerHistoricoCompleto7Dias()
             val alimentosUnicos = historico
+                .asSequence()
                 .flatMap { it.listas }
                 .flatMap { it.alimentos }
                 .distinctBy { it.id }
@@ -192,6 +185,7 @@ class PesquisarViewModel(application: Application) : AndroidViewModel(applicatio
                     )
                 }
                 .take(20)
+                .toList()
             _recentes.value = alimentosUnicos
         }
     }

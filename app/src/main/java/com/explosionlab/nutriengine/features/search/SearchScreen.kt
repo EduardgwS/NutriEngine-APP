@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.explosionlab.nutriengine.features.search
 
 import android.Manifest
@@ -18,53 +20,95 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.BakeryDining
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.BakeryDining
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.KebabDining
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.sp
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.scale
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.explosionlab.nutriengine.features.health.DadoCard
 import com.explosionlab.nutriengine.core.designsystem.NutriGreen
 import com.explosionlab.nutriengine.core.model.Alimento
+import com.explosionlab.nutriengine.features.health.DadoCard
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PesquisarScreen(
+fun SearchScreen(
     innerPadding: PaddingValues      = PaddingValues(),
-    viewModel:    PesquisarViewModel = viewModel()
+    viewModel:    SearchViewModel = viewModel()
 ) {
     val context        = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope          = rememberCoroutineScope()
+    val focusManager   = LocalFocusManager.current
 
     var temPermissaoCamera by remember {
         mutableStateOf(
@@ -109,7 +153,7 @@ fun PesquisarScreen(
             .padding(innerPadding)
     ) {
 
-        // ── Preview da câmera ──────────────────────────────────────────────────
+        //Preview da camera
         if (temPermissaoCamera) {
             AndroidView(
                 factory  = { ctx ->
@@ -133,7 +177,7 @@ fun PesquisarScreen(
                             val preview = Preview.Builder()
                                 .setResolutionSelector(resolutionSelector)
                                 .build()
-                                .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                                .also { it.surfaceProvider = previewView.surfaceProvider }
 
                             val imageCapture = ImageCapture.Builder()
                                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
@@ -176,7 +220,7 @@ fun PesquisarScreen(
             }
         }
 
-        // ── Badge da lista ─────────────────────────────────────────────────────
+        //Badge da lista
         BadgedBox(
             badge = {
                 if (listaEscolhidos.isNotEmpty()) {
@@ -202,7 +246,7 @@ fun PesquisarScreen(
                     .size(48.dp)
             ) {
                 Icon(
-                    imageVector        = Icons.Default.List,
+                    imageVector        = Icons.AutoMirrored.Filled.List,
                     contentDescription = "Minha lista",
                     tint               = Color.White,
                     modifier           = Modifier.size(26.dp)
@@ -210,7 +254,7 @@ fun PesquisarScreen(
             }
         }
 
-        // ── Botões inferiores ──────────────────────────────────────────────────
+        //Botões inferiores
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -226,19 +270,24 @@ fun PesquisarScreen(
                         ContextCompat.getMainExecutor(context),
                         object : ImageCapture.OnImageCapturedCallback() {
                             override fun onCaptureSuccess(image: ImageProxy) {
-                                try {
-                                    val bytes = comprimirParaEnvio(image.toBitmap())
-                                    viewModel.identificarPorImagem(bytes)
-                                } catch (e: Exception) {
-                                    Log.e("PesquisarScreen", "Erro ao processar imagem: ${e.message}")
-                                } finally {
-                                    image.close()
-                                    capturando = false
+                                scope.launch(Dispatchers.Default) {
+                                    try {
+                                        val bitmap = image.toBitmap()
+                                        val bytes = comprimirParaEnvio(bitmap)
+                                        viewModel.identificarPorImagem(bytes)
+                                    } catch (e: Exception) {
+                                        Log.e("SearchScreen", "Erro ao processar imagem: ${e.message}")
+                                    } finally {
+                                        image.close()
+                                        withContext(Dispatchers.Main) {
+                                            capturando = false
+                                        }
+                                    }
                                 }
                             }
 
                             override fun onError(exc: ImageCaptureException) {
-                                Log.e("PesquisarScreen", "Erro ao capturar: ${exc.message}")
+                                Log.e("SearchScreen", "Erro ao capturar: ${exc.message}")
                                 capturando = false
                             }
                         }
@@ -285,7 +334,7 @@ fun PesquisarScreen(
         }
     }
 
-    // ── Bottom Sheet de pesquisa ───────────────────────────────────────────────
+    //Bottom Sheet de pesquisa
     if (sheetAberto) {
         ModalBottomSheet(
             onDismissRequest = {
@@ -298,7 +347,9 @@ fun PesquisarScreen(
             if (alimentoSelecionado != null) {
                 DetalheAlimento(
                     alimento = alimentoSelecionado!!,
-                    onVoltar = { alimentoSelecionado = null },
+                    onVoltar = {
+                        alimentoSelecionado = null
+                    },
                     onFechar = {
                         sheetAberto = false
                         viewModel.limpar()
@@ -309,21 +360,25 @@ fun PesquisarScreen(
                         sheetAberto = false
                         viewModel.limpar()
                         alimentoSelecionado = null
+                        focusManager.clearFocus()
                     }
                 )
             } else {
                 PesquisaManual(
                     viewModel     = viewModel,
-                    onSelecionado = { alimentoSelecionado = it }
+                    onSelecionado = {
+                        alimentoSelecionado = it
+                        focusManager.clearFocus()
+                    }
                 )
             }
         }
     }
 
-    // ── Bottom Sheet da lista ──────────────────────────────────────────────────
+    //Bottom Sheet da lista
     if (listaAberta) {
         var resumoVisivel  by remember { mutableStateOf(false) }
-        var resumoSnapshot by remember { mutableStateOf<List<PesquisarViewModel.AlimentoComQuantidade>>(emptyList()) }
+        var resumoSnapshot by remember { mutableStateOf<List<SearchViewModel.AlimentoComQuantidade>>(emptyList()) }
 
         ModalBottomSheet(
             onDismissRequest = {
@@ -347,12 +402,9 @@ fun PesquisarScreen(
                     onLimpar      = { viewModel.limparLista() },
                     onFechar      = { listaAberta = false },
                     onFecharLista = {
-                        // 1. Captura o estado atual para exibição no resumo
                         resumoSnapshot = listaEscolhidos.toList()
-                        // 2. Salva no banco e limpa a lista de rascunho imediatamente
                         viewModel.salvarLista(listaEscolhidos)
                         viewModel.limparLista()
-                        // 3. Mostra o resumo apenas como informação
                         resumoVisivel = true
                     },
                     onRecentes = {
@@ -408,23 +460,24 @@ fun PesquisarScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
-                        items(recentes) { alimento ->
-                            CardAlimento(
-                                alimento = alimento,
-                                onClick = {
-                                    alimentoSelecionado = alimento
-                                    recentesAberto = false
-                                    sheetAberto = true
-                                }
-                            )
-                        }
+                    items(recentes, key = { it.id }) { alimento ->
+                        CardAlimento(
+                            alimento = alimento,
+                            onClick = {
+                                alimentoSelecionado = alimento
+                                recentesAberto = false
+                                sheetAberto = true
+                                focusManager.clearFocus()
+                            }
+                        )
+                    }
                     }
                 }
             }
         }
     }
 
-    // ── Bottom Sheet de resultado de identificação ─────────────────────────────
+    //Bottom Sheet de resultado de identificação
     if (resultadoSheetAberto) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.limparIdentificacao() },
@@ -439,6 +492,7 @@ fun PesquisarScreen(
                     onAdicionarNaLista = { alimento, gramas ->
                         viewModel.adicionarNaLista(alimento, gramas)
                         viewModel.limparIdentificacao()
+                        focusManager.clearFocus()
                     }
                 )
             } else if (erroIdentificacao != null) {
@@ -483,12 +537,12 @@ fun PesquisarScreen(
     }
 }
 
-// ── Lista de itens escolhidos ─────────────────────────────────────────────────
+//Lista de itens escolhidos
 
 @Composable
 fun ListaEscolhidos(
-    itens:         List<PesquisarViewModel.AlimentoComQuantidade>,
-    onRemover:     (PesquisarViewModel.AlimentoComQuantidade) -> Unit,
+    itens:         List<SearchViewModel.AlimentoComQuantidade>,
+    onRemover:     (SearchViewModel.AlimentoComQuantidade) -> Unit,
     onLimpar:      () -> Unit,
     onFechar:      () -> Unit,
     onFecharLista: () -> Unit,
@@ -531,7 +585,7 @@ fun ListaEscolhidos(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector        = Icons.Default.List,
+                        imageVector        = Icons.AutoMirrored.Filled.List,
                         contentDescription = null,
                         tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier           = Modifier.size(48.dp)
@@ -569,7 +623,7 @@ fun ListaEscolhidos(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 contentPadding      = PaddingValues(bottom = 12.dp)
             ) {
-                items(itens) { item ->
+                items(itens, key = { "${it.alimento.id}_${it.quantidadeG}_${System.identityHashCode(it)}" }) { item ->
                     CardItemLista(
                         item      = item,
                         onRemover = { onRemover(item) }
@@ -595,11 +649,11 @@ fun ListaEscolhidos(
     }
 }
 
-// ── Resumo da lista ───────────────────────────────────────────────────────────
+//Resumo da lista
 
 @Composable
 fun ResumoLista(
-    itens:    List<PesquisarViewModel.AlimentoComQuantidade>,
+    itens:    List<SearchViewModel.AlimentoComQuantidade>,
     onFechar: () -> Unit,
 ) {
     val totalKcal  = itens.sumOf { it.kcalEscalonado }
@@ -689,11 +743,11 @@ fun ResumoLista(
     }
 }
 
-// ── Card de item na lista ─────────────────────────────────────────────────────
+//Card de item na lista
 
 @Composable
 fun CardItemLista(
-    item:     PesquisarViewModel.AlimentoComQuantidade,
+    item:     SearchViewModel.AlimentoComQuantidade,
     onRemover: () -> Unit,
 ) {
     Card(
@@ -742,11 +796,11 @@ fun CardItemLista(
     }
 }
 
-// ── Pesquisa manual ───────────────────────────────────────────────────────────
+//Pesquisa manual
 
 @Composable
 fun PesquisaManual(
-    viewModel:     PesquisarViewModel,
+    viewModel:     SearchViewModel,
     onSelecionado: (Alimento) -> Unit,
 ) {
     val resultados by viewModel.resultados.collectAsState()
@@ -803,7 +857,7 @@ fun PesquisaManual(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     contentPadding      = PaddingValues(bottom = 16.dp)
                 ) {
-                    items(resultados) { alimento ->
+                    items(resultados, key = { it.id }) { alimento ->
                         CardAlimento(alimento = alimento, onClick = { onSelecionado(alimento) })
                     }
                 }
@@ -812,7 +866,7 @@ fun PesquisaManual(
     }
 }
 
-// ── Card de alimento nos resultados ──────────────────────────────────────────
+//Card de alimento nos resultados
 
 @Composable
 fun CardAlimento(alimento: Alimento, onClick: () -> Unit) {
@@ -852,7 +906,7 @@ fun CardAlimento(alimento: Alimento, onClick: () -> Unit) {
     }
 }
 
-// ── Detalhe do alimento com campo de gramas ───────────────────────────────────
+//Detalhe do alimento com campo de gramas
 
 @Composable
 fun DetalheAlimento(
@@ -862,7 +916,7 @@ fun DetalheAlimento(
     onFechar:           () -> Unit,
     onAdicionarNaLista: (Alimento, Double) -> Unit = { _, _ -> },
 ) {
-    // Estado do campo de gramas — começa com o valor inicial (100 ou o identificado)
+    // Estado do campo de gramas — começa com o valor inicial 100 ou o identificado
     var gramasInput by remember(alimento, initialGramas) {
         mutableStateOf(if (initialGramas % 1 == 0.0) initialGramas.toInt().toString() else initialGramas.toString())
     }
@@ -906,7 +960,7 @@ fun DetalheAlimento(
 
         Spacer(Modifier.height(20.dp))
 
-        // ── Campo de quantidade ────────────────────────────────────────────────
+        //Campo de quantidade
         Text(
             "Quantidade consumida",
             style      = MaterialTheme.typography.titleSmall,
@@ -917,7 +971,7 @@ fun DetalheAlimento(
         OutlinedTextField(
             value           = gramasInput,
             onValueChange   = { novo ->
-                // Permite dígitos, ponto e vírgula; impede mais de 5 chars
+                //Permite dígitos, ponto e vírgula; impede mais de 5 chars
                 if (novo.length <= 6 && novo.all { it.isDigit() || it == '.' || it == ',' })
                     gramasInput = novo
             },
@@ -932,7 +986,7 @@ fun DetalheAlimento(
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Preview dos macros escalonados ─────────────────────────────────────
+        //Preview dos macros
         Text(
             "Informação nutricional para %.0fg".format(gramas),
             style = MaterialTheme.typography.labelLarge,
@@ -999,7 +1053,7 @@ fun DetalheAlimento(
     }
 }
 
-// ── Macro card reutilizável ───────────────────────────────────────────────────
+//Macro card reutilizável
 
 @Composable
 fun MacroCard(
@@ -1047,7 +1101,7 @@ fun MacroCard(
     }
 }
 
-// ── Compressão de imagem ──────────────────────────────────────────────────────
+//Comprime a imagem antes de enviar
 
 private fun comprimirParaEnvio(
     bitmap:    Bitmap,
@@ -1059,8 +1113,7 @@ private fun comprimirParaEnvio(
     val escala  = maxDim.toFloat() / maxOf(largura, altura)
 
     val reduzido = if (escala < 1f) {
-        Bitmap.createScaledBitmap(
-            bitmap,
+        bitmap.scale(
             (largura * escala).toInt(),
             (altura  * escala).toInt(),
             true

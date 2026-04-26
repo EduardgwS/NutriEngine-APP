@@ -85,7 +85,7 @@ class NutriCheckWorker(
 
             NotificationScheduler.SLOT_ALMOCO -> Quad(
                 ID_ALMOCO,
-                "Hora do almoço! 🍽️",
+                "Hora do almoço!",
                 when {
                     pctKcal < 0.15 ->
                         "Você ainda não registrou muita coisa hoje. Aproveite o almoço!"
@@ -101,7 +101,7 @@ class NutriCheckWorker(
 
             NotificationScheduler.SLOT_LANCHE -> Quad(
                 ID_LANCHE,
-                "Lanche da tarde! 🍎",
+                "Lanche da tarde!",
                 when {
                     pctKcal < 0.40 ->
                         "Você consumiu só %.0f%% da meta hoje. Bora comer alguma coisa?".format(pctKcal * 100)
@@ -117,10 +117,10 @@ class NutriCheckWorker(
 
             NotificationScheduler.SLOT_JANTAR -> Quad(
                 ID_JANTAR,
-                "Hora do jantar! 🌙",
+                "Hora do jantar!",
                 when {
                     gapKcal < 200 && gapProt < 10 ->
-                        "Você tá quase batendo a meta! Um jantar leve e fecha tudo. 💪"
+                        "Você tá quase batendo a meta! Um jantar leve e fecha tudo."
                     gapProt > 20 ->
                         "Faltam %.0fg de proteína hoje. Que tal um bife acebolado ou salmão?".format(gapProt)
                     gapCarbo > 60 ->
@@ -136,8 +136,8 @@ class NutriCheckWorker(
             NotificationScheduler.SLOT_NOITE -> Quad(
                 ID_NOITE,
                 when {
-                    pctKcal >= 0.90 -> "Meta batida! 🏆"
-                    pctKcal >= 0.70 -> "Quase lá! 💪"
+                    pctKcal >= 0.90 -> "Meta batida!"
+                    pctKcal >= 0.70 -> "Quase lá!"
                     else            -> "Resumo do dia 📊"
                 },
                 when {

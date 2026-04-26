@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.*
+import androidx.health.connect.client.records.HeightRecord
+import androidx.health.connect.client.records.NutritionRecord
+import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -27,7 +29,6 @@ class HealthConnectRepository(private val context: Context) {
         HealthPermission.getReadPermission(HeightRecord::class),
         HealthPermission.getWritePermission(WeightRecord::class),
         HealthPermission.getWritePermission(HeightRecord::class),
-        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(NutritionRecord::class),
         HealthPermission.getWritePermission(NutritionRecord::class),
     )

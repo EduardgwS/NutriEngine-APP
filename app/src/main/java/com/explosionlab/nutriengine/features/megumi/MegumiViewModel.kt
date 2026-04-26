@@ -10,11 +10,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.explosionlab.nutriengine.core.model.Mensagem
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
 import com.explosionlab.nutriengine.core.data.repository.ConsumoRepository
-import com.explosionlab.nutriengine.features.health.HealthConnectRepository
 import com.explosionlab.nutriengine.core.data.repository.PerfilRepository
+import com.explosionlab.nutriengine.core.model.Mensagem
+import com.explosionlab.nutriengine.features.health.HealthConnectRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,7 +64,7 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
         semConexao = false
 
         // 1. Adiciona mensagem do usuário
-        _mensagens.value = _mensagens.value + Mensagem(textoLimpo, ehUsuario = true)
+        _mensagens.value += Mensagem(textoLimpo, ehUsuario = true)
         
         carregando = true
 
@@ -72,7 +72,7 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val historicoJson = montarHistoricoSaudeJson()
                 val resposta = chatRepository.enviarMensagem(textoLimpo, imagemBytes, historicoJson)
-                _mensagens.value = _mensagens.value + Mensagem(resposta, ehUsuario = false)
+                _mensagens.value += Mensagem(resposta, ehUsuario = false)
             } catch (e: Exception) {
                 Log.e("MegumiViewModel", "Erro ao enviar mensagem: ${e.message}")
             } finally {
@@ -93,13 +93,7 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
                 caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
-    // ── Contexto de saúde para a IA ───────────────────────────────────────────
-
-    /**
-     * Monta JSON com perfil + histórico dos últimos 7 dias.
-     * Cada dia inclui totais agregados (do HC quando disponível) e a lista
-     * detalhada de alimentos registrados no app — agrupados por refeição.
-     */
+    //Montador de contexto de saúde para a IA
     private suspend fun montarHistoricoSaudeJson(): String {
         return try {
             val perfil = perfilRepo.carregarPerfil(
@@ -133,7 +127,7 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
                     listOf(local.kcal, local.proteinaG, local.carboG, local.gorduraG)
                 }
 
-                // Refeições salvas manualmente no app
+                // Refeições salvas manualmente no aplicativo
                 val listas = consumoRepo.carregarListas(data.toString())
 
                 if (kcal > 0 || prot > 0 || carbo > 0 || gord > 0 || listas.isNotEmpty()) {

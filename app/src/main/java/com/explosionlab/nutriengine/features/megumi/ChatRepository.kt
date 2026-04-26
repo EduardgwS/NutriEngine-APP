@@ -1,8 +1,8 @@
 package com.explosionlab.nutriengine.features.megumi
 
 import android.util.Log
-import com.explosionlab.nutriengine.core.di.NetworkModule
 import com.explosionlab.nutriengine.core.data.repository.AuthRepository
+import com.explosionlab.nutriengine.core.di.NetworkModule
 import com.explosionlab.nutriengine.core.model.Mensagem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,11 +14,13 @@ import org.json.JSONObject
 
 class ChatRepository(private val authRepository: AuthRepository) {
 
-    private val TAG        = "ChatRepository"
+    companion object{
+        private const val TAG        = "ChatRepository"
+    }
     private val httpClient = NetworkModule.httpClient
     private val backendUrl = NetworkModule.BACKEND_URL
 
-    // ── Enviar mensagem ───────────────────────────────────────────────────────
+    //Envio de mensagens
 
     suspend fun enviarMensagem(
         texto:              String,
@@ -52,7 +54,7 @@ class ChatRepository(private val authRepository: AuthRepository) {
                 .build()
 
             httpClient.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: ""
+                val body = response.body.string()
                 when {
                     response.isSuccessful -> JSONObject(body).optString("response", "Sem resposta.")
                     response.code == 400  -> "Digite uma mensagem antes de enviar."
@@ -68,12 +70,7 @@ class ChatRepository(private val authRepository: AuthRepository) {
         }
     }
 
-    // ── Carregar histórico do banco ────────────────────────────────────────────
-
-    /**
-     * Busca as últimas mensagens salvas no banco via GET /megumi/historico.
-     * Retorna lista de Mensagem em ordem cronológica (mais antiga primeiro).
-     */
+    //Histórico do banco
     suspend fun carregarHistorico(limite: Int = 50): List<Mensagem> =
         withContext(Dispatchers.IO) {
             val token = authRepository.carregarToken()
@@ -89,7 +86,7 @@ class ChatRepository(private val authRepository: AuthRepository) {
                 httpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext emptyList()
 
-                    val body  = response.body?.string() ?: return@withContext emptyList()
+                    val body  = response.body.string()
                     val json  = JSONObject(body)
                     val array = json.optJSONArray("mensagens") ?: return@withContext emptyList()
 

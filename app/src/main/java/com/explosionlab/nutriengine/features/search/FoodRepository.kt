@@ -1,10 +1,10 @@
 package com.explosionlab.nutriengine.features.search
 
 import android.util.Log
+import com.explosionlab.nutriengine.core.data.repository.AuthRepository
 import com.explosionlab.nutriengine.core.di.NetworkModule
 import com.explosionlab.nutriengine.core.model.Alimento
 import com.explosionlab.nutriengine.core.model.IdentificacaoResult
-import com.explosionlab.nutriengine.core.data.repository.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -14,9 +14,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-class AlimentoRepository(private val authRepository: AuthRepository) {
+class FoodRepository(private val authRepository: AuthRepository) {
 
-    private val TAG        = "AlimentoRepository"
+    companion object {
+        private const val TAG = "MercadoRepository"
+    }
     private val httpClient = NetworkModule.httpClient
     private val backendUrl = NetworkModule.BACKEND_URL
 
@@ -34,7 +36,7 @@ class AlimentoRepository(private val authRepository: AuthRepository) {
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
-                val body  = response.body?.string() ?: return@withContext emptyList()
+                val body  = response.body.string()
                 val array = JSONArray(body)
                 val lista = mutableListOf<Alimento>()
 
@@ -61,11 +63,7 @@ class AlimentoRepository(private val authRepository: AuthRepository) {
         }
     }
 
-    /**
-     * Envia uma imagem para o endpoint /api/identificar-alimento e retorna
-     * o nome normalizado do alimento identificado pela IA e os gramas estimados,
-     * ou null se não encontrado / erro.
-     */
+
     suspend fun identificarPorImagem(imagemBytes: ByteArray): IdentificacaoResult? = withContext(Dispatchers.IO) {
         try {
             val token = authRepository.carregarToken() ?: return@withContext null
@@ -87,7 +85,7 @@ class AlimentoRepository(private val authRepository: AuthRepository) {
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                val body = response.body?.string() ?: return@withContext null
+                val body = response.body.string()
                 val json = JSONObject(body)
                 if (json.getString("status") != "success") return@withContext null
 
