@@ -18,11 +18,13 @@ data class RelatorioUiState(
     val perfil:                 Perfil?                              = null,
     val historico7Dias:         List<ConsumoRepository.ConsumoLocal>    = emptyList(),
     val historicoCompleto7Dias: List<ConsumoRepository.ConsumoCompleto> = emptyList(),
+    val nutricaoExternaHoje:    HealthConnectRepository.NutricaoDiaria? = null,
     val carregando:             Boolean                              = true,
 )
 
 class RelatorioViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val context     = application.applicationContext
     private val authRepo    = AuthRepository(application)
     private val perfilRepo  = PerfilRepository(application)
     private val healthRepo  = HealthConnectRepository(application)
@@ -48,6 +50,22 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val (pesoHC, alturaHC) = sincronizarHealthConnect()
 
+                val nutricaoHC = if (healthRepo.isDisponivel() && healthRepo.temPermissoes()) {
+                    val myPackage = context.packageName
+                    val todos = healthRepo.lerNutricaoHoje()
+                    // Filtra apenas se houver fontes diferentes da nossa
+                    if (todos.fontes.any { it != myPackage }) {
+                        val proprio = healthRepo.lerNutricaoPropriaDia(LocalDate.now())
+                        HealthConnectRepository.NutricaoDiaria(
+                            calorias = todos.calorias - proprio.calorias,
+                            carboidratos = todos.carboidratos - proprio.carboidratos,
+                            proteinas = todos.proteinas - proprio.proteinas,
+                            gorduras = todos.gorduras - proprio.gorduras,
+                            fontes = todos.fontes.filter { it != myPackage }.toSet()
+                        )
+                    } else null
+                } else null
+
                 val perfil = perfilRepo.carregarPerfil(
                     nomeGoogleFallback = authRepo.carregarNome(),
                     pesoOverride       = pesoHC,
@@ -58,6 +76,7 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
                     perfil                 = perfil,
                     historico7Dias         = consumoRepo.lerHistorico7Dias(),
                     historicoCompleto7Dias = consumoRepo.lerHistoricoCompleto7Dias(),
+                    nutricaoExternaHoje    = nutricaoHC,
                     carregando             = false,
                 )
 

@@ -84,6 +84,7 @@ class HealthConnectRepository(private val context: Context) {
         val ferro:        Double = 0.0,   // mg
         val sodio:        Double = 0.0,   // mg
         val potassio:     Double = 0.0,   // mg
+        val fontes:       Set<String> = emptySet() // Pacotes dos apps que geraram os dados
     )
 
     // ── Leitura — Corpo ────────────────────────────────────────────────────────
@@ -102,10 +103,11 @@ class HealthConnectRepository(private val context: Context) {
 
     /** Soma todos os registros de nutrição de um dia específico. */
     suspend fun lerNutricaoDia(data: LocalDate): NutricaoDiaria = try {
-        client()
+        val records = client()
             .readRecords(ReadRecordsRequest(NutritionRecord::class, rangeDia(data)))
             .records
-            .fold(NutricaoDiaria()) { acc, r ->
+
+        records.fold(NutricaoDiaria()) { acc, r ->
                 acc.copy(
                     carboidratos = acc.carboidratos + (r.totalCarbohydrate?.inGrams ?: 0.0),
                     proteinas    = acc.proteinas    + (r.protein?.inGrams           ?: 0.0),
@@ -119,11 +121,30 @@ class HealthConnectRepository(private val context: Context) {
                     ferro        = acc.ferro        + (r.iron?.inMilligrams         ?: 0.0),
                     sodio        = acc.sodio        + (r.sodium?.inMilligrams       ?: 0.0),
                     potassio     = acc.potassio     + (r.potassium?.inMilligrams    ?: 0.0),
+                    fontes       = acc.fontes + (r.metadata.dataOrigin.packageName)
                 )
             }
     } catch (e: Exception) {
         Log.e(TAG, "Nutrição dia $data: ${e.message}"); NutricaoDiaria()
     }
+
+    /** Retorna apenas os registros inseridos por este app. */
+    suspend fun lerNutricaoPropriaDia(data: LocalDate): NutricaoDiaria = try {
+        val myPackage = context.packageName
+        val all = client()
+            .readRecords(ReadRecordsRequest(NutritionRecord::class, rangeDia(data)))
+            .records
+            .filter { it.metadata.dataOrigin.packageName == myPackage }
+
+        all.fold(NutricaoDiaria()) { acc, r ->
+            acc.copy(
+                calorias = acc.calorias + (r.energy?.inKilocalories ?: 0.0),
+                carboidratos = acc.carboidratos + (r.totalCarbohydrate?.inGrams ?: 0.0),
+                proteinas = acc.proteinas + (r.protein?.inGrams ?: 0.0),
+                gorduras = acc.gorduras + (r.totalFat?.inGrams ?: 0.0)
+            )
+        }
+    } catch (e: Exception) { NutricaoDiaria() }
 
     /** Atalho para o dia atual. Delega para [lerNutricaoDia]. */
     suspend fun lerNutricaoHoje(): NutricaoDiaria = lerNutricaoDia(LocalDate.now())

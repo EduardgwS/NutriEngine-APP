@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -87,6 +88,7 @@ import com.explosionlab.nutriengine.core.designsystem.WarningOrange
 import com.explosionlab.nutriengine.core.model.Objetivo
 import com.explosionlab.nutriengine.core.model.Perfil
 import com.explosionlab.nutriengine.features.health.DadoCard
+import com.explosionlab.nutriengine.features.health.HealthConnectRepository
 import com.explosionlab.nutriengine.features.health.SecaoTitulo
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -144,6 +146,11 @@ fun RelatorioScreen(
                 SecaoTitulo("Meta calórica diária")
                 MetaCaloricaCard(p)
                 DistribuicaoMacrosCard(p)
+            }
+
+            state.nutricaoExternaHoje?.let { externa ->
+                SecaoTitulo("Importado de outros apps")
+                NutricaoExternaCard(externa)
             }
 
             SecaoTitulo("Resumo da semana")
@@ -746,6 +753,65 @@ fun MacroCard(nome: String, gramas: String, porcento: String, modifier: Modifier
             Text(gramas, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
             Text(porcento, style = MaterialTheme.typography.labelSmall, color = NutriGreen, fontWeight = FontWeight.SemiBold)
         }
+    }
+}
+
+@Composable
+private fun NutricaoExternaCard(nutricao: HealthConnectRepository.NutricaoDiaria) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(id = com.explosionlab.nutriengine.R.drawable.ic_health_connect),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.Unspecified
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Sincronizado via Health Connect",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Estes dados foram importados de outros aplicativos:",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                DestaqueNutriente("Calorias", "%.0f kcal".format(nutricao.calorias))
+                DestaqueNutriente("Proteínas", "%.1f g".format(nutricao.proteinas))
+                DestaqueNutriente("Carbos", "%.1f g".format(nutricao.carboidratos))
+                DestaqueNutriente("Gorduras", "%.1f g".format(nutricao.gorduras))
+            }
+            if (nutricao.fontes.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Fontes: ${nutricao.fontes.joinToString(", ")}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DestaqueNutriente(label: String, valor: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = MaterialTheme.typography.labelSmall)
+        Text(valor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }
 

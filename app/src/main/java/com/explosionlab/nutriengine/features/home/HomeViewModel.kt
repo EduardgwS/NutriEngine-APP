@@ -92,12 +92,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
                 // 2. Verificar Health Connect
                 if (healthRepo.isDisponivel() && healthRepo.temPermissoes()) {
-                    val hc = healthRepo.lerNutricaoDia(hoje)
-                    Log.d("HomeViewModel", "Dados HC: ${hc.calorias} kcal | Dados Local: ${local.kcal} kcal")
+                    val hcTotal = healthRepo.lerNutricaoDia(hoje)
+                    val hcProprio = healthRepo.lerNutricaoPropriaDia(hoje)
 
-                    // Se local tem dados e HC está diferente, sincronizamos para o HC (Escrita/Update/Delete)
-                    if (local.kcal > 0 && abs(hc.calorias - local.kcal) > 1.0) {
-                        Log.d("HomeViewModel", "Sincronizando Local -> Health Connect")
+                    Log.d("HomeViewModel", "HC Total: ${hcTotal.calorias} | HC Próprio: ${hcProprio.calorias} | Local: ${local.kcal}")
+
+                    // A exibição na Home deve ser o TOTAL real (App + Outros)
+                    if (hcTotal.calorias > 0) {
+                        kcalHoje  = hcTotal.calorias
+                        protHoje  = hcTotal.proteinas
+                        carboHoje = hcTotal.carboidratos
+                        gordHoje  = hcTotal.gorduras
+                    }
+
+                    // A sincronização (Escrita) deve olhar apenas para o que o MEU APP produziu no HC
+                    if (local.kcal > 0 && abs(hcProprio.calorias - local.kcal) > 1.0) {
+                        Log.d("HomeViewModel", "Sincronizando Local -> Health Connect (Apenas dados próprios)")
                         healthRepo.sincronizarNutricaoDia(
                             data = hoje,
                             nutricao = HealthConnectRepository.NutricaoDiaria(
@@ -106,21 +116,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                                 proteinas = local.proteinaG,
                                 gorduras = local.gorduraG
                             )
-                        )
-                    }
-                    // Se local está vazio mas HC tem dados, importamos para o app (migração ou outro app)
-                    else if (local.kcal <= 0 && hc.calorias > 0) {
-                        Log.d("HomeViewModel", "Importando Health Connect -> Local")
-                        kcalHoje  = hc.calorias
-                        protHoje  = hc.proteinas
-                        carboHoje = hc.carboidratos
-                        gordHoje  = hc.gorduras
-                        consumoRepo.salvarConsumoLocal(
-                            data      = hoje.toString(),
-                            kcal      = hc.calorias,
-                            proteinaG = hc.proteinas,
-                            carboG    = hc.carboidratos,
-                            gorduraG  = hc.gorduras,
                         )
                     }
                 } else {
