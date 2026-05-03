@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -75,6 +76,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -110,6 +112,8 @@ fun HomeScreen(
     val recomendacaoReceita  by viewModel.recomendacaoReceita.collectAsStateWithLifecycle()
     val macroState           by viewModel.macroState.collectAsStateWithLifecycle()
     val dicaMacro            by viewModel.dicaMacro.collectAsStateWithLifecycle()
+    val streak               by viewModel.streak.collectAsStateWithLifecycle()
+    val semanaStatus         by viewModel.semanaStatus.collectAsStateWithLifecycle()
 
     val recomendacoes by marketViewModel.recomendacoes.collectAsStateWithLifecycle()
     val parceiros     by marketViewModel.parceiros.collectAsStateWithLifecycle()
@@ -167,9 +171,14 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        // controle (Streak)
+        if (streak > 0 || semanaStatus.any { it }) {
+            ControleCard(streak = streak, semanaStatus = semanaStatus)
+        }
+
         //Barra de calorias
         CaloriasProgressBar(
             caloriasHoje         = caloriasHoje,
@@ -777,6 +786,89 @@ fun ProdutoDetalheSheet(
 // ── Componentes existentes mantidos ──────────────────────────────────────────
 
 @Composable
+private fun ControleCard(streak: Int, semanaStatus: List<Boolean>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF121212)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Color(0xFF2A2A2A), RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = com.explosionlab.nutriengine.R.drawable.apple_streak),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                
+                Column {
+                    Text(
+                        text = when {
+                            streak == 0 -> "Comece sua jornada!"
+                            streak == 1 -> "1 dia no controle!"
+                            else -> "$streak dias no controle!"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = if (streak <= 1) "Sua ofensiva começou!" else "Você está imparável!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            Surface(
+                color = Color(0xFF2A2A2A),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val diasSemana = listOf("S", "T", "Q", "Q", "S", "S", "D")
+                    semanaStatus.forEachIndexed { index, atingiu ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = diasSemana.getOrNull(index) ?: "",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (atingiu) Color(0xFFFFD700) else Color.White.copy(alpha = 0.4f)
+                            )
+                            Icon(
+                                imageVector = if (atingiu) Icons.Default.CheckCircle else Icons.Default.Grain,
+                                contentDescription = null,
+                                tint = if (atingiu) Color(0xFFFFD700) else Color.White.copy(alpha = 0.2f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CaloriasProgressBar(
     caloriasHoje: Double,
     caloriasRecomendadas: Int,
@@ -787,54 +879,99 @@ private fun CaloriasProgressBar(
 
     val progressoAnimado by animateFloatAsState(
         targetValue   = progresso,
-        animationSpec = tween(durationMillis = 800),
+        animationSpec = tween(durationMillis = 1000),
         label         = "caloriasProgresso",
     )
 
     val corBarra = when {
         progresso >= 1f   -> MaterialTheme.colorScheme.error
         progresso >= 0.8f -> Color(0xFFF59E0B)
-        else              -> MaterialTheme.colorScheme.primary
+        else              -> NutriGreen
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier              = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment     = Alignment.CenterVertically,
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Calorias de hoje", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold)
-            Text("${(progresso * 100).toInt()}%", style = MaterialTheme.typography.labelLarge,
-                color = corBarra, fontWeight = FontWeight.Bold)
-        }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Bolt,
+                        contentDescription = null,
+                        tint = corBarra,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Energia do Dia",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    "${(progresso * 100).toInt()}%",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = corBarra,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(18.dp)
-                .clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progressoAnimado)
+                    .fillMaxWidth()
+                    .height(12.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(corBarra),
-            )
-        }
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progressoAnimado)
+                        .clip(RoundedCornerShape(50))
+                        .background(corBarra),
+                )
+            }
 
-        Row(
-            modifier              = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("${caloriasHoje.toInt()} kcal ingeridas",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Meta: $caloriasRecomendadas kcal",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        "Consumido",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${caloriasHoje.toInt()} kcal",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "Meta Diária",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "$caloriasRecomendadas kcal",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         }
     }
 }

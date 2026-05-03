@@ -167,7 +167,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     fun carregarRecentes() {
         viewModelScope.launch {
-            val historico = consumoRepo.lerHistoricoCompleto7Dias()
+            val historico = consumoRepo.lerHistoricoCompletoDias(7)
             val alimentosUnicos = historico
                 .asSequence()
                 .flatMap { it.listas }

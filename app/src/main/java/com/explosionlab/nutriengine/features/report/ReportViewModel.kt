@@ -15,11 +15,12 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class RelatorioUiState(
-    val perfil:                 Perfil?                              = null,
-    val historico7Dias:         List<ConsumoRepository.ConsumoLocal>    = emptyList(),
-    val historicoCompleto7Dias: List<ConsumoRepository.ConsumoCompleto> = emptyList(),
+    val perfil:                 Perfil?                                 = null,
+    val historicoGrafico:       List<ConsumoRepository.ConsumoLocal>    = emptyList(),
+    val historicoCompleto:      List<ConsumoRepository.ConsumoCompleto> = emptyList(),
     val nutricaoExternaHoje:    HealthConnectRepository.NutricaoDiaria? = null,
-    val carregando:             Boolean                              = true,
+    val semanasAtras:           Int                                     = 0,
+    val carregando:             Boolean                                 = true,
 )
 
 class RelatorioViewModel(application: Application) : AndroidViewModel(application) {
@@ -40,6 +41,14 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
 
     //Carregar
 
+    fun mudarSemana(delta: Int) {
+        val novaSemana = (_state.value.semanasAtras + delta).coerceAtLeast(0)
+        if (novaSemana != _state.value.semanasAtras) {
+            _state.value = _state.value.copy(semanasAtras = novaSemana)
+            carregarDados(silencioso = true)
+        }
+    }
+
     fun recarregarRelatorio() = carregarDados(silencioso = true)
 
     private fun carregarDados(silencioso: Boolean = false) {
@@ -48,14 +57,17 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.value = _state.value.copy(carregando = true)
             }
             try {
+                val semanasAtras = _state.value.semanasAtras
+                val dataBase = LocalDate.now().minusWeeks(semanasAtras.toLong())
+
                 val (pesoHC, alturaHC) = sincronizarHealthConnect()
 
                 val nutricaoHC = if (healthRepo.isDisponivel() && healthRepo.temPermissoes()) {
                     val myPackage = context.packageName
-                    val todos = healthRepo.lerNutricaoHoje()
+                    val todos = healthRepo.lerNutricaoDia(dataBase) // Agora lê a nutrição da data base
                     // Filtra apenas se houver fontes diferentes da nossa
                     if (todos.fontes.any { it != myPackage }) {
-                        val proprio = healthRepo.lerNutricaoPropriaDia(LocalDate.now())
+                        val proprio = healthRepo.lerNutricaoPropriaDia(dataBase)
                         HealthConnectRepository.NutricaoDiaria(
                             calorias = todos.calorias - proprio.calorias,
                             carboidratos = todos.carboidratos - proprio.carboidratos,
@@ -74,8 +86,8 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
 
                 _state.value = _state.value.copy(
                     perfil                 = perfil,
-                    historico7Dias         = consumoRepo.lerHistorico7Dias(),
-                    historicoCompleto7Dias = consumoRepo.lerHistoricoCompleto7Dias(),
+                    historicoGrafico       = consumoRepo.lerHistoricoDias(7, dataBase),
+                    historicoCompleto      = consumoRepo.lerHistoricoCompletoDias(7, dataBase),
                     nutricaoExternaHoje    = nutricaoHC,
                     carregando             = false,
                 )
@@ -123,10 +135,13 @@ class RelatorioViewModel(application: Application) : AndroidViewModel(applicatio
             perfilRepo.carregarPerfil(nomeGoogleFallback = authRepo.carregarNome())
         }.getOrNull()
 
+        val semanasAtras = _state.value.semanasAtras
+        val dataBase = LocalDate.now().minusWeeks(semanasAtras.toLong())
+
         _state.value = _state.value.copy(
             perfil                 = perfilFallback,
-            historico7Dias         = runCatching { consumoRepo.lerHistorico7Dias() }.getOrElse { emptyList() },
-            historicoCompleto7Dias = runCatching { consumoRepo.lerHistoricoCompleto7Dias() }.getOrElse { emptyList() },
+            historicoGrafico       = runCatching { consumoRepo.lerHistoricoDias(7, dataBase) }.getOrElse { emptyList() },
+            historicoCompleto      = runCatching { consumoRepo.lerHistoricoCompletoDias(7, dataBase) }.getOrElse { emptyList() },
             carregando             = false,
         )
     }

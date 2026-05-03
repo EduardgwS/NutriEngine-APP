@@ -59,12 +59,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _recomendacaoReceita  = MutableStateFlow<RecomendacaoReceita?>(null)
     private val _macroState           = MutableStateFlow(MacroState())
     private val _dicaMacro            = MutableStateFlow<DicaMacro?>(null)
+    private val _streak               = MutableStateFlow(0)
+    private val _semanaStatus         = MutableStateFlow<List<Boolean>>(emptyList())
 
     val caloriasHoje:         StateFlow<Double>               = _caloriasHoje.asStateFlow()
     val caloriasRecomendadas: StateFlow<Int>                  = _caloriasRecomendadas.asStateFlow()
     val recomendacaoReceita:  StateFlow<RecomendacaoReceita?> = _recomendacaoReceita.asStateFlow()
     val macroState:           StateFlow<MacroState>           = _macroState.asStateFlow()
     val dicaMacro:            StateFlow<DicaMacro?>           = _dicaMacro.asStateFlow()
+    val streak:               StateFlow<Int>                  = _streak.asStateFlow()
+    val semanaStatus:         StateFlow<List<Boolean>>        = _semanaStatus.asStateFlow()
 
     init {
         carregarCalorias()
@@ -142,6 +146,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     gorduraMeta       = kcalMeta * pGord  / 9.0,
                 )
                 _macroState.value = novoMacroState
+
+                // 4. Calcular controle (Streak)
+                viewModelScope.launch {
+                    val historico30 = consumoRepo.lerHistoricoDias(30)
+                    var count = 0
+                    for (dia in historico30.reversed()) {
+                        val atingiuMeta = dia.kcal > 0 && dia.kcal <= perfil.caloriasRecomendadas * 1.1
+                        if (atingiuMeta) count++ else if (dia.data != hoje.toString()) break
+                    }
+                    _streak.value = count
+
+                    val historico7 = consumoRepo.lerHistoricoDias(7)
+                    _semanaStatus.value = historico7.map { it.kcal > 0 && it.kcal <= perfil.caloriasRecomendadas * 1.1 }
+                }
 
                 //Busca da receita do dia
                 viewModelScope.launch {

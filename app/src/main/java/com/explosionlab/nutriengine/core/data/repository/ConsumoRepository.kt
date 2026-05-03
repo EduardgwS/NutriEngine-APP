@@ -236,9 +236,8 @@ class ConsumoRepository(private val context: Context) {
 
     //Histórico
 
-    suspend fun lerHistorico7Dias(): List<ConsumoLocal> {
-        val hoje   = LocalDate.now()
-        val datas  = (0..6).map { hoje.minusDays(it.toLong()).toString() }
+    suspend fun lerHistoricoDias(quantidadeDias: Int = 7, dataBase: LocalDate = LocalDate.now()): List<ConsumoLocal> {
+        val datas  = (0 until quantidadeDias).map { dataBase.minusDays(it.toLong()).toString() }
         val entities = dao.getConsumosPorDatas(datas).associateBy { it.data }
 
         return datas.map { d ->
@@ -246,10 +245,9 @@ class ConsumoRepository(private val context: Context) {
         }.reversed()
     }
 
-    suspend fun lerHistoricoCompleto7Dias(): List<ConsumoCompleto> {
-        val hoje = LocalDate.now()
-        return (0..6).map { diasAtras ->
-            val data = hoje.minusDays(diasAtras.toLong()).toString()
+    suspend fun lerHistoricoCompletoDias(quantidadeDias: Int = 7, dataBase: LocalDate = LocalDate.now()): List<ConsumoCompleto> {
+        return (0 until quantidadeDias).map { diasAtras ->
+            val data = dataBase.minusDays(diasAtras.toLong()).toString()
             ConsumoCompleto(
                 consumo = carregarConsumoLocal(data),
                 listas = carregarListas(data).sortedByDescending { it.timestamp }

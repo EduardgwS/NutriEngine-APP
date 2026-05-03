@@ -33,6 +33,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
@@ -154,14 +156,20 @@ fun RelatorioScreen(
             }
 
             SecaoTitulo("Resumo da semana")
-            if (state.historico7Dias.any { it.kcal > 0 }) {
-                GraficoSemanal(historico = state.historico7Dias, caloriasRecomendadas = p.caloriasRecomendadas)
+            if (state.historicoGrafico.isNotEmpty()) {
+                GraficoSemanal(
+                    historico = state.historicoGrafico,
+                    caloriasRecomendadas = p.caloriasRecomendadas,
+                    semanasAtras = state.semanasAtras,
+                    onMudarSemana = viewModel::mudarSemana
+                )
             } else {
                 EmptyStateCard("Nenhum consumo registrado ainda.\nCrie uma lista na aba Pesquisar para começar.")
             }
 
             HistoricoAlimentosSection(
-                historico = state.historicoCompleto7Dias,
+                historico = state.historicoCompleto,
+                semanasAtras = state.semanasAtras,
                 onEditar = viewModel::editarAlimento,
                 onRemover = viewModel::removerAlimento,
                 onRemoverLista = viewModel::removerLista,
@@ -292,6 +300,7 @@ private fun EmptyStateCard(texto: String) {
 @Composable
 private fun HistoricoAlimentosSection(
     historico: List<ConsumoRepository.ConsumoCompleto>,
+    semanasAtras: Int,
     onEditar: (data: String, listaId: String, alimentoId: String, novaQuantidadeG: Double) -> Unit,
     onRemover: (data: String, listaId: String, alimentoId: String) -> Unit,
     onRemoverLista: (data: String, listaId: String) -> Unit,
@@ -304,7 +313,8 @@ private fun HistoricoAlimentosSection(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Histórico de Alimentos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        val titulo = if (semanasAtras == 0) "Histórico desta semana" else "Histórico de $semanasAtras ${if (semanasAtras == 1) "semana" else "semanas"} atrás"
+        Text(titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (diasComListas.isNotEmpty()) {
             FilledTonalButton(
                 onClick = { modoEdicao = !modoEdicao },
@@ -341,7 +351,7 @@ private fun HistoricoAlimentosSection(
     }
 
     if (diasComListas.isEmpty()) {
-        EmptyStateCard("Nenhum alimento registrado nos últimos 7 dias.\nUse a aba Pesquisar para adicionar refeições.")
+        EmptyStateCard("Nenhum alimento registrado para este período.")
         return
     }
 
@@ -613,8 +623,13 @@ private fun MacroChipPequeno(texto: String, cor: Color, modifier: Modifier = Mod
 }
 
 @Composable
-fun GraficoSemanal(historico: List<ConsumoRepository.ConsumoLocal>, caloriasRecomendadas: Int) {
-    val maxKcal = maxOf(historico.maxOf { it.kcal }, caloriasRecomendadas.toDouble(), 1.0)
+fun GraficoSemanal(
+    historico: List<ConsumoRepository.ConsumoLocal>,
+    caloriasRecomendadas: Int,
+    semanasAtras: Int,
+    onMudarSemana: (Int) -> Unit
+) {
+    val maxKcal = maxOf(historico.maxOfOrNull { it.kcal } ?: 0.0, caloriasRecomendadas.toDouble(), 1.0)
     val barColor = NutriGreen
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
     val metaColor = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
@@ -622,6 +637,13 @@ fun GraficoSemanal(historico: List<ConsumoRepository.ConsumoLocal>, caloriasReco
 
     val totalSemana = historico.sumOf { it.kcal }
     val mediaSemana = if (historico.isNotEmpty()) totalSemana / historico.size else 0.0
+
+    val dataInicio = if (historico.isNotEmpty()) LocalDate.parse(historico.first().data) else null
+    val dataFim = if (historico.isNotEmpty()) LocalDate.parse(historico.last().data) else null
+    val formatter = DateTimeFormatter.ofPattern("dd/MM")
+    val periodoTexto = if (dataInicio != null && dataFim != null) {
+        "${dataInicio.format(formatter)} - ${dataFim.format(formatter)}"
+    } else ""
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -633,30 +655,50 @@ fun GraficoSemanal(historico: List<ConsumoRepository.ConsumoLocal>, caloriasReco
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "Desempenho Semanal",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        "Desempenho Semanal",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        periodoTexto,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { onMudarSemana(1) }) {
+                        Icon(Icons.Default.ChevronLeft, "Semana anterior")
+                    }
+                    IconButton(
+                        onClick = { onMudarSemana(-1) },
+                        enabled = semanasAtras > 0
+                    ) {
+                        Icon(Icons.Default.ChevronRight, "Próxima semana")
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LegendaItem(barColor, "Consumo")
+                    if (caloriasRecomendadas > 0) LegendaItem(metaColor, "Meta")
+                }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         "Média: %.0f kcal".format(mediaSemana),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(
-                        "Total: %.0f kcal".format(totalSemana),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                LegendaItem(barColor, "Consumo")
-                if (caloriasRecomendadas > 0) LegendaItem(metaColor, "Meta")
             }
 
             Spacer(Modifier.height(16.dp))
