@@ -111,7 +111,7 @@ fun HealthConnectOnboardingScreen(
 
         Spacer(Modifier.height(36.dp))
 
-        // ── Aviso de disponibilidade ───────────────────────────────────────────
+        // Avisa sobre a disponiblidade do HC
         if (!viewModel.hcDisponivel) {
             Card(
                 colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
@@ -127,7 +127,6 @@ fun HealthConnectOnboardingScreen(
             Spacer(Modifier.height(16.dp))
         }
 
-        // ── Botão principal ────────────────────────────────────────────────────
         Button(
             onClick  = {
                 if (viewModel.hcDisponivel) permissaoLauncher.launch(viewModel.permissions)
@@ -147,7 +146,6 @@ fun HealthConnectOnboardingScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── Botão secundário ───────────────────────────────────────────────────
         if (viewModel.hcDisponivel) {
             TextButton(
                 onClick  = onContinuar,
@@ -164,7 +162,6 @@ fun HealthConnectOnboardingScreen(
     }
 }
 
-// ── Item de benefício ──────────────────────────────────────────────────────────
 
 @Composable
 private fun BeneficioItem(titulo: String, descricao: String) {

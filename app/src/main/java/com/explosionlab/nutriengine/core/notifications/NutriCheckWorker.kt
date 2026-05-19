@@ -138,7 +138,7 @@ class NutriCheckWorker(
                 when {
                     pctKcal >= 0.90 -> "Meta batida!"
                     pctKcal >= 0.70 -> "Quase lá!"
-                    else            -> "Resumo do dia 📊"
+                    else            -> "Resumo do dia"
                 },
                 when {
                     pctKcal >= 0.90 && gapProt < 10 ->
@@ -161,6 +161,5 @@ class NutriCheckWorker(
         return Result.success()
     }
 
-    /** Agrupa os 4 valores retornados pelo when de forma legível. */
     private data class Quad(val id: Int, val titulo: String, val corpo: String, val canal: String)
 }

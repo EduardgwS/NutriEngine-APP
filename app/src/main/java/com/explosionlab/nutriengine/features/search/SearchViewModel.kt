@@ -38,11 +38,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     //Lista de escolhidos
 
-    /**
-     * Alimento selecionado pelo usuário com a quantidade em gramas.
-     * Os campos *Escalonado são calculados sob demanda a partir dos
-     * valores-base por 100 g.
-     */
+
     data class AlimentoComQuantidade(
         val alimento: Alimento,
         val quantidadeG: Double,
@@ -69,11 +65,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         _listaEscolhidos.value = emptyList()
     }
 
-    /**
-     * Persiste os itens como uma nova [ConsumoRepository.ListaSalva] com
-     * os valores nutricionais *por 100 g* (base) + quantidade escolhida.
-     * O repositório recalcula os totais do dia automaticamente.
-     */
+
     fun salvarLista(itens: List<AlimentoComQuantidade>) {
         if (itens.isEmpty()) return
         viewModelScope.launch {

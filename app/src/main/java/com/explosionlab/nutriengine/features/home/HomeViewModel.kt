@@ -15,188 +15,174 @@ import com.explosionlab.nutriengine.features.health.HealthConnectRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import kotlin.math.abs
 
-//Consumo dos macronutrientes do dia
-data class MacroState(
-    val proteinaConsumida:    Double = 0.0,
-    val carboConsumido:       Double = 0.0,
-    val gorduraConsumida:     Double = 0.0,
-    val proteinaMeta:         Double = 0.0,
-    val carboMeta:            Double = 0.0,
-    val gorduraMeta:          Double = 0.0,
-) {
-    val proteinaGap:  Double get() = (proteinaMeta  - proteinaConsumida).coerceAtLeast(0.0)
-    val carboGap:     Double get() = (carboMeta     - carboConsumido).coerceAtLeast(0.0)
-    val gorduraGap:   Double get() = (gorduraMeta   - gorduraConsumida).coerceAtLeast(0.0)
+data class HomeUiState(
+    val caloriasHoje: Double = 0.0,
+    val caloriasRecomendadas: Int = 0,
+    val recomendacaoReceita: RecomendacaoReceita? = null,
+    val macroState: MacroState = MacroState(),
+    val dicaMacro: DicaMacro? = null,
+    val streak: Int = 0,
+    val semanaStatus: List<Boolean> = emptyList(),
+)
 
-    val maiorDeficit: Int get() {
-        if (proteinaMeta <= 0) return -1
-        val pctProt  = proteinaGap  / proteinaMeta
-        val pctCarbo = carboGap     / carboMeta.coerceAtLeast(1.0)
-        val pctGord  = gorduraGap   / gorduraMeta.coerceAtLeast(1.0)
-        val max      = maxOf(pctProt, pctCarbo, pctGord)
-        if (max < 0.10) return -1   // menos de 10% de gap → tudo ok
-        return when (max) {
-            pctProt  -> 0
-            pctCarbo -> 1
-            else     -> 2
+data class MacroState(
+    val proteinaConsumida: Double = 0.0,
+    val carboConsumido: Double = 0.0,
+    val gorduraConsumida: Double = 0.0,
+    val proteinaMeta: Double = 0.0,
+    val carboMeta: Double = 0.0,
+    val gorduraMeta: Double = 0.0,
+) {
+    private val proteinaGap get() = (proteinaMeta - proteinaConsumida).coerceAtLeast(0.0)
+    private val carboGap get() = (carboMeta - carboConsumido).coerceAtLeast(0.0)
+    private val gorduraGap get() = (gorduraMeta - gorduraConsumida).coerceAtLeast(0.0)
+
+    val maiorDeficit: Int
+        get() {
+            if (proteinaMeta <= 0) return -1
+            val pctProt = proteinaGap / proteinaMeta
+            val pctCarbo = carboGap / carboMeta.coerceAtLeast(1.0)
+            val pctGord = gorduraGap / gorduraMeta.coerceAtLeast(1.0)
+            val max = maxOf(pctProt, pctCarbo, pctGord)
+            return when {
+                max < 0.10 -> -1
+                max == pctProt -> 0
+                max == pctCarbo -> 1
+                else -> 2
+            }
         }
-    }
+}
+
+private data class ProporcoesMacro(val carbo: Double, val proteina: Double, val gordura: Double)
+
+private fun proporcoesPara(objetivo: Objetivo) = when (objetivo) {
+    Objetivo.GANHAR_MUSCULOS      -> ProporcoesMacro(carbo = 0.45, proteina = 0.30, gordura = 0.25)
+    Objetivo.PERDER_PESO          -> ProporcoesMacro(carbo = 0.40, proteina = 0.35, gordura = 0.25)
+    Objetivo.MELHORAR_ALIMENTACAO -> ProporcoesMacro(carbo = 0.50, proteina = 0.25, gordura = 0.25)
 }
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val authRepository = AuthRepository(application)
-    private val healthRepo     = HealthConnectRepository(application)
-    private val perfilRepo     = PerfilRepository(application)
-    private val consumoRepo    = ConsumoRepository(application)
+    private val authRepo = AuthRepository(application)
+    private val healthRepo = HealthConnectRepository(application)
+    private val perfilRepo = PerfilRepository(application)
+    private val consumoRepo = ConsumoRepository(application)
 
-    private val _caloriasHoje         = MutableStateFlow(0.0)
-    private val _caloriasRecomendadas = MutableStateFlow(0)
-    private val _recomendacaoReceita  = MutableStateFlow<RecomendacaoReceita?>(null)
-    private val _macroState           = MutableStateFlow(MacroState())
-    private val _dicaMacro            = MutableStateFlow<DicaMacro?>(null)
-    private val _streak               = MutableStateFlow(0)
-    private val _semanaStatus         = MutableStateFlow<List<Boolean>>(emptyList())
-
-    val caloriasHoje:         StateFlow<Double>               = _caloriasHoje.asStateFlow()
-    val caloriasRecomendadas: StateFlow<Int>                  = _caloriasRecomendadas.asStateFlow()
-    val recomendacaoReceita:  StateFlow<RecomendacaoReceita?> = _recomendacaoReceita.asStateFlow()
-    val macroState:           StateFlow<MacroState>           = _macroState.asStateFlow()
-    val dicaMacro:            StateFlow<DicaMacro?>           = _dicaMacro.asStateFlow()
-    val streak:               StateFlow<Int>                  = _streak.asStateFlow()
-    val semanaStatus:         StateFlow<List<Boolean>>        = _semanaStatus.asStateFlow()
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
-        carregarCalorias()
-        observarMudancas()
-    }
-
-    fun recarregarCaloriasHome() = carregarCalorias()
-
-    private fun carregarCalorias() {
+        carregarDados()
         viewModelScope.launch {
-            try {
-                val hoje   = LocalDate.now()
-                val perfil = perfilRepo.carregarPerfil(
-                    nomeGoogleFallback = authRepository.carregarNome()
-                )
-
-                Log.d("HomeViewModel", "Iniciando carga de calorias para $hoje")
-
-                // 1. Carregar dados locais (Fonte da Verdade para o app)
-                val local = consumoRepo.carregarConsumoLocal(hoje.toString())
-                var kcalHoje  = local.kcal
-                var protHoje  = local.proteinaG
-                var carboHoje = local.carboG
-                var gordHoje  = local.gorduraG
-
-                // 2. Verificar Health Connect
-                if (healthRepo.isDisponivel() && healthRepo.temPermissoes()) {
-                    val hcTotal = healthRepo.lerNutricaoDia(hoje)
-                    val hcProprio = healthRepo.lerNutricaoPropriaDia(hoje)
-
-                    Log.d("HomeViewModel", "HC Total: ${hcTotal.calorias} | HC Próprio: ${hcProprio.calorias} | Local: ${local.kcal}")
-
-                    // A exibição na Home deve ser o TOTAL real (App + Outros)
-                    if (hcTotal.calorias > 0) {
-                        kcalHoje  = hcTotal.calorias
-                        protHoje  = hcTotal.proteinas
-                        carboHoje = hcTotal.carboidratos
-                        gordHoje  = hcTotal.gorduras
-                    }
-
-                    // A sincronização (Escrita) deve olhar apenas para o que o MEU APP produziu no HC
-                    if (local.kcal > 0 && abs(hcProprio.calorias - local.kcal) > 1.0) {
-                        Log.d("HomeViewModel", "Sincronizando Local -> Health Connect (Apenas dados próprios)")
-                        healthRepo.sincronizarNutricaoDia(
-                            data = hoje,
-                            nutricao = HealthConnectRepository.NutricaoDiaria(
-                                calorias = local.kcal,
-                                carboidratos = local.carboG,
-                                proteinas = local.proteinaG,
-                                gorduras = local.gorduraG
-                            )
-                        )
-                    }
-                } else {
-                    Log.d("HomeViewModel", "Health Connect não disponível ou sem permissões.")
-                }
-
-                //Meta dos Macronutrientes
-                val kcalMeta = perfil.caloriasRecomendadas.toDouble()
-                val (pCarbo, pProt, pGord) = when (perfil.objetivo) {
-                    Objetivo.GANHAR_MUSCULOS      -> Triple(0.45, 0.30, 0.25)
-                    Objetivo.PERDER_PESO          -> Triple(0.40, 0.35, 0.25)
-                    Objetivo.MELHORAR_ALIMENTACAO -> Triple(0.50, 0.25, 0.25)
-                }
-
-                _caloriasHoje.value         = kcalHoje
-                _caloriasRecomendadas.value = perfil.caloriasRecomendadas
-
-                val novoMacroState = MacroState(
-                    proteinaConsumida = protHoje,
-                    carboConsumido    = carboHoje,
-                    gorduraConsumida  = gordHoje,
-                    proteinaMeta      = kcalMeta * pProt  / 4.0,
-                    carboMeta         = kcalMeta * pCarbo / 4.0,
-                    gorduraMeta       = kcalMeta * pGord  / 9.0,
-                )
-                _macroState.value = novoMacroState
-
-                // 4. Calcular controle (Streak)
-                viewModelScope.launch {
-                    val historico30 = consumoRepo.lerHistoricoDias(30)
-                    var count = 0
-                    for (dia in historico30.reversed()) {
-                        val atingiuMeta = dia.kcal > 0 && dia.kcal <= perfil.caloriasRecomendadas * 1.1
-                        if (atingiuMeta) count++ else if (dia.data != hoje.toString()) break
-                    }
-                    _streak.value = count
-
-                    val historico7 = consumoRepo.lerHistoricoDias(7)
-                    _semanaStatus.value = historico7.map { it.kcal > 0 && it.kcal <= perfil.caloriasRecomendadas * 1.1 }
-                }
-
-                //Busca da receita do dia
-                viewModelScope.launch {
-                    try {
-                        val response = NetworkModule.api.getReceitaDoDia(perfil.objetivo.name)
-                        val receita = response.receita
-                        if (receita.titulo != null && receita.descricao != null) {
-                            _recomendacaoReceita.value = receita
-                        }
-                    } catch (e: Exception) {
-                        Log.e("HomeViewModel", "Erro ao buscar receita: ${e.message}")
-                    }
-                }
-
-                viewModelScope.launch {
-                    try {
-                        val response = NetworkModule.api.getDicaMacro(
-                            maiorDeficit      = novoMacroState.maiorDeficit,
-                            proteinaConsumida = novoMacroState.proteinaConsumida
-                        )
-                        _dicaMacro.value = response.dica
-                    } catch (e: Exception) {
-                        Log.e("HomeViewModel", "Erro ao buscar dica macro: ${e.message}")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "Erro ao carregar calorias: ${e.message}")
-            }
+            consumoRepo.mudancas.collect { carregarDados() }
         }
     }
 
-    private fun observarMudancas() {
-        viewModelScope.launch {
-            consumoRepo.mudancas.collect {
-                Log.d("HomeViewModel", "Consumo atualizado — recarregando calorias.")
-                carregarCalorias()
+    fun recarregarCaloriasHome() = carregarDados()
+
+    private fun carregarDados() = viewModelScope.launch {
+        try {
+            val hoje = LocalDate.now()
+            val perfil = perfilRepo.carregarPerfil(authRepo.carregarNome())
+
+            val nutri = carregarNutricao(hoje)
+            val macroState = calcularMacroState(nutri, perfil.caloriasRecomendadas, perfil.objetivo)
+
+            _uiState.update {
+                it.copy(
+                    caloriasHoje = nutri.calorias,
+                    caloriasRecomendadas = perfil.caloriasRecomendadas,
+                    macroState = macroState,
+                )
             }
+
+            launch { carregarStreak(hoje, perfil.caloriasRecomendadas) }
+            launch { buscarRecomendacoes(perfil.objetivo, macroState) }
+
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Erro ao carregar dados", e)
+        }
+    }
+
+    private suspend fun carregarNutricao(hoje: LocalDate): HealthConnectRepository.NutricaoDiaria {
+        val local = consumoRepo.carregarConsumoLocal(hoje.toString())
+        var resultado = HealthConnectRepository.NutricaoDiaria(
+            calorias = local.kcal,
+            carboidratos = local.carboG,
+            proteinas = local.proteinaG,
+            gorduras = local.gorduraG,
+        )
+
+        if (!healthRepo.isDisponivel() || !healthRepo.temPermissoes()) return resultado
+
+        val hcTotal = healthRepo.lerNutricaoDia(hoje)
+        if (hcTotal.calorias > 0) resultado = hcTotal
+
+        val hcProprio = healthRepo.lerNutricaoPropriaDia(hoje)
+        val deveSincronizar = local.kcal > 0 && abs(hcProprio.calorias - local.kcal) > 1.0
+        if (deveSincronizar) {
+            healthRepo.sincronizarNutricaoDia(
+                hoje,
+                HealthConnectRepository.NutricaoDiaria(
+                    calorias = local.kcal,
+                    carboidratos = local.carboG,
+                    proteinas = local.proteinaG,
+                    gorduras = local.gorduraG,
+                ),
+            )
+        }
+
+        return resultado
+    }
+
+    private fun calcularMacroState(
+        nutri: HealthConnectRepository.NutricaoDiaria,
+        meta: Int,
+        objetivo: Objetivo,
+    ): MacroState {
+        val p = proporcoesPara(objetivo)
+        return MacroState(
+            proteinaConsumida = nutri.proteinas,
+            carboConsumido = nutri.carboidratos,
+            gorduraConsumida = nutri.gorduras,
+            proteinaMeta = meta * p.proteina / 4.0,
+            carboMeta = meta * p.carbo / 4.0,
+            gorduraMeta = meta * p.gordura / 9.0,
+        )
+    }
+
+    private suspend fun carregarStreak(hoje: LocalDate, meta: Int) {
+        fun isDentroMeta(kcal: Double) = kcal > 0 && kcal <= meta * 1.1
+
+        val hist30 = consumoRepo.lerHistoricoDias(30)
+        var streak = 0
+        for (dia in hist30.reversed()) {
+            if (isDentroMeta(dia.kcal)) streak++
+            else if (dia.data != hoje.toString()) break
+        }
+
+        val semanaStatus = consumoRepo.lerHistoricoDias(7).map { isDentroMeta(it.kcal) }
+
+        _uiState.update { it.copy(streak = streak, semanaStatus = semanaStatus) }
+    }
+
+    private suspend fun buscarRecomendacoes(objetivo: Objetivo, macros: MacroState) {
+        try {
+            val receita = NetworkModule.api.getReceitaDoDia(objetivo.name).receita
+            val dica = NetworkModule.api.getDicaMacro(macros.maiorDeficit, macros.proteinaConsumida).dica
+            _uiState.update {
+                it.copy(
+                    recomendacaoReceita = receita.takeIf { r -> r.titulo != null },
+                    dicaMacro = dica,
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Erro na API de recomendações", e)
         }
     }
 }

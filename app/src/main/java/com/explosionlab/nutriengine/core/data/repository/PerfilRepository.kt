@@ -43,7 +43,7 @@ class PerfilRepository(private val context: Context) {
         }
     }
 
-    // ── Perfil completo ────────────────────────────────────────────────────────
+    // Perfil
 
     fun salvarPerfil(
         nome:           String,
@@ -66,13 +66,6 @@ class PerfilRepository(private val context: Context) {
         }
     }
 
-    /**
-     * Carrega o perfil completo das SharedPreferences locais.
-     *
-     * [pesoOverride] e [alturaOverride] permitem que o RelatorioViewModel
-     * substitua os valores locais por leituras frescas do HC (quando disponível),
-     * sem quebrar o fluxo quando o HC está ausente.
-     */
     fun carregarPerfil(
         nomeGoogleFallback: String  = "",
         pesoOverride:       Double? = null,

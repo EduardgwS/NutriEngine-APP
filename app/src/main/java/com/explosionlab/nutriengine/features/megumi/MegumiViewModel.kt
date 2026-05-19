@@ -41,7 +41,7 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
 
     init { carregarHistorico() }
 
-    // ── Histórico de mensagens ────────────────────────────────────────────────
+    // Histórico das msg
 
     fun recarregar() = carregarHistorico()
 
@@ -53,8 +53,6 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // ── Envio de mensagem ─────────────────────────────────────────────────────
-
     fun enviarMensagem(texto: String, imagemBytes: ByteArray? = null) {
         val textoLimpo = texto.trim()
         if (textoLimpo.isEmpty() && imagemBytes == null) return
@@ -63,7 +61,6 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
         if (!isConectado()) { semConexao = true; return }
         semConexao = false
 
-        // 1. Adiciona mensagem do usuário
         _mensagens.value += Mensagem(textoLimpo, ehUsuario = true)
         
         carregando = true
@@ -83,7 +80,7 @@ class MegumiViewModel(application: Application) : AndroidViewModel(application) 
 
     fun descartarAvisoSemConexao() { semConexao = false }
 
-    // ── Conectividade ─────────────────────────────────────────────────────────
+    // Conected
 
     private fun isConectado(): Boolean {
         val cm = getApplication<Application>()

@@ -35,7 +35,7 @@ class HealthConnectRepository(private val context: Context) {
         HealthPermission.getWritePermission(NutritionRecord::class),
     )
 
-    // ── Disponibilidade ────────────────────────────────────────────────────────
+    // Testa o HC
 
     fun isDisponivel(): Boolean {
         val status = HealthConnectClient.getSdkStatus(context)
@@ -55,7 +55,6 @@ class HealthConnectRepository(private val context: Context) {
         Log.e(TAG, "Erro ao verificar permissões: ${e.message}"); false
     }
 
-    // ── Helpers de intervalo ───────────────────────────────────────────────────
 
     private fun rangeDia(data: LocalDate): TimeRangeFilter {
         val zone = ZoneId.systemDefault()
@@ -69,7 +68,7 @@ class HealthConnectRepository(private val context: Context) {
         Instant.now().minus(365, ChronoUnit.DAYS), Instant.now()
     )
 
-    // ── Modelos ────────────────────────────────────────────────────────────────
+    // Modelos
 
     data class NutricaoDiaria(
         val carboidratos: Double = 0.0,   // g
@@ -87,7 +86,7 @@ class HealthConnectRepository(private val context: Context) {
         val fontes:       Set<String> = emptySet() // Pacotes dos apps que geraram os dados
     )
 
-    // ── Leitura — Corpo ────────────────────────────────────────────────────────
+    // Leituras
 
     suspend fun lerUltimoPeso(): Double? = try {
         client().readRecords(ReadRecordsRequest(WeightRecord::class, ultimoAno()))
@@ -99,9 +98,7 @@ class HealthConnectRepository(private val context: Context) {
             .records.lastOrNull()?.height?.inMeters
     } catch (e: Exception) { Log.e(TAG, "Altura: ${e.message}"); null }
 
-    // ── Leitura — Nutrição ─────────────────────────────────────────────────────
 
-    /** Soma todos os registros de nutrição de um dia específico. */
     suspend fun lerNutricaoDia(data: LocalDate): NutricaoDiaria = try {
         val records = client()
             .readRecords(ReadRecordsRequest(NutritionRecord::class, rangeDia(data)))
@@ -128,7 +125,6 @@ class HealthConnectRepository(private val context: Context) {
         Log.e(TAG, "Nutrição dia $data: ${e.message}"); NutricaoDiaria()
     }
 
-    /** Retorna apenas os registros inseridos por este app. */
     suspend fun lerNutricaoPropriaDia(data: LocalDate): NutricaoDiaria = try {
         val myPackage = context.packageName
         val all = client()
@@ -146,10 +142,9 @@ class HealthConnectRepository(private val context: Context) {
         }
     } catch (e: Exception) { NutricaoDiaria() }
 
-    /** Atalho para o dia atual. Delega para [lerNutricaoDia]. */
     suspend fun lerNutricaoHoje(): NutricaoDiaria = lerNutricaoDia(LocalDate.now())
 
-    // ── Escrita — Corpo ────────────────────────────────────────────────────────
+    // Escrita
 
     suspend fun salvarPeso(kg: Double): Boolean = try {
         client().insertRecords(listOf(
@@ -175,9 +170,6 @@ class HealthConnectRepository(private val context: Context) {
         true
     } catch (e: Exception) { Log.e(TAG, "Salvar altura: ${e.message}"); false }
 
-    // ── Escrita — Nutrição ─────────────────────────────────────────────────────
-
-    /** Salva macronutrientes e micronutrientes no Health Connect para uma data específica. */
     suspend fun salvarNutricao(
         nutricao: NutricaoDiaria,
         data: LocalDate = LocalDate.now()
@@ -217,7 +209,6 @@ class HealthConnectRepository(private val context: Context) {
         Log.e(TAG, "Erro ao salvar nutrição: ${e.message}"); false
     }
 
-    /** Exclui todos os registros de nutrição inseridos por este app em um dia específico. */
     suspend fun limparNutricaoPorData(data: LocalDate): Boolean = try {
         client().deleteRecords(
             recordType = NutritionRecord::class,
@@ -228,13 +219,11 @@ class HealthConnectRepository(private val context: Context) {
         Log.e(TAG, "Erro ao limpar nutrição do dia $data: ${e.message}"); false
     }
 
-    /** Atalho para sincronizar: Limpa o dia e salva o novo total. */
     suspend fun sincronizarNutricaoDia(data: LocalDate, nutricao: NutricaoDiaria): Boolean {
         limparNutricaoPorData(data)
         return salvarNutricao(nutricao, data)
     }
 
-    /** Exclui registros de nutrição pelos IDs fornecidos. */
     suspend fun excluirNutricaoPorIds(ids: List<String>): Boolean = try {
         client().deleteRecords(
             recordType = NutritionRecord::class,
@@ -246,7 +235,6 @@ class HealthConnectRepository(private val context: Context) {
         Log.e(TAG, "Erro ao excluir registros de nutrição: ${e.message}"); false
     }
 
-    /** Retorna a lista detalhada de registros de nutrição do dia para obter os IDs. */
     suspend fun lerRegistrosNutricaoDia(data: LocalDate): List<NutritionRecord> = try {
         client()
             .readRecords(ReadRecordsRequest(NutritionRecord::class, rangeDia(data)))

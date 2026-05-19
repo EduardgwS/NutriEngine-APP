@@ -40,10 +40,7 @@ object NutriNotificationManager {
         )
     }
 
-    /**
-     * Exibe uma notificação. [id] deve ser único por slot para que cada
-     * horário atualize o próprio card em vez de empilhar notificações.
-     */
+
     fun mostrar(
         context: Context,
         id:      Int,

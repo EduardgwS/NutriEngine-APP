@@ -47,7 +47,7 @@ class AuthRepository(private val context: Context) {
 
     fun carregarNome(): String =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_NAME, "")!! // ou simplesmente confiar no default
+            .getString(KEY_NAME, "")!!
 
     fun limparToken() {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

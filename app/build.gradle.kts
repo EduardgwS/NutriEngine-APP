@@ -16,8 +16,8 @@ android {
         applicationId = "com.explosionlab.nutriengine"
         minSdk = 27
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.8.1"
+        versionCode = 10
+        versionName = "0.8.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -72,7 +72,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Tarefas em background e notificações agendadas
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
 
     // Room
     implementation(libs.androidx.room.runtime)

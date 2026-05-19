@@ -280,7 +280,6 @@ fun TypingIndicator(color: Color) {
     }
 }
 
-/** Converte padrões básicos de Markdown (**negrito**, *itálico*) em AnnotatedString. */
 fun parseMarkdown(text: String): AnnotatedString {
     return buildAnnotatedString {
         var cursor = 0

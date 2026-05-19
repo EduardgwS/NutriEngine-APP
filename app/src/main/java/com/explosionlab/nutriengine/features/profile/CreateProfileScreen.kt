@@ -285,7 +285,7 @@ private fun PerfilFormulario(
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
-                            "🔵 Google",
+                            "Google",
                             style    = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             color    = MaterialTheme.colorScheme.onSecondaryContainer,
