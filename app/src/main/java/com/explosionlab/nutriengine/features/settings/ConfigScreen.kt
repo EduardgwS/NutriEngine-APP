@@ -19,8 +19,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -29,7 +31,6 @@ import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,14 +44,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.explosionlab.nutriengine.core.common.AppViewModel
 import com.explosionlab.nutriengine.core.common.TemaApp
@@ -59,13 +64,28 @@ import com.explosionlab.nutriengine.core.designsystem.NutriGreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfiguracoesScreen(
-    onVoltar:         () -> Unit,
-    onEditarPerfil:   () -> Unit,
-    appViewModel:     AppViewModel,
-    viewModel:        ConfiguracoesViewModel = viewModel(),
+    onVoltar:                 () -> Unit,
+    onEditarPerfil:           () -> Unit,
+    onConectarHealthConnect: () -> Unit,
+    appViewModel:             AppViewModel,
+    viewModel:                ConfiguracoesViewModel = viewModel(),
 ) {
     val state   = viewModel.state
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val version  = remember {
         val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         pInfo.versionName
@@ -116,11 +136,16 @@ fun ConfiguracoesScreen(
             //Perfil
             GrupoTitulo("Perfil")
 
-            ItemBotao(
+            ConfigItem(
                 icone     = Icons.Default.Person,
                 titulo    = "Editar perfil",
                 descricao = "Alterar nome, peso, altura e objetivo",
                 onClick   = onEditarPerfil,
+                trailing  = {
+                    Icon(Icons.Default.ChevronRight, null,
+                        tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp))
+                }
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -128,24 +153,57 @@ fun ConfiguracoesScreen(
             //Notificações
             GrupoTitulo("Notificações")
 
-            ItemSwitch(
+            ConfigItem(
                 icone     = if (state.notificacoesAtivas) Icons.Default.Notifications
-                else                           Icons.Default.NotificationsOff,
+                            else Icons.Default.NotificationsOff,
                 titulo    = "Notificações",
                 descricao = if (state.notificacoesAtivas) "Notificações ativadas"
-                else                           "Notificações desativadas",
-                checked   = state.notificacoesAtivas,
-                onCheckedChange = { ativar ->
-                    if (ativar) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            notificacaoLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            viewModel.onResultadoPermissaoNotificacao(true)
-                        }
-                    } else {
-                        viewModel.desativarNotificacoes()
-                    }
-                },
+                            else "Notificações desativadas",
+                trailing = {
+                    Switch(
+                        checked         = state.notificacoesAtivas,
+                        onCheckedChange = { ativar ->
+                            if (ativar) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notificacaoLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    viewModel.onResultadoPermissaoNotificacao(true)
+                                }
+                            } else {
+                                viewModel.desativarNotificacoes()
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor  = Color.White,
+                            checkedTrackColor  = NutriGreen,
+                        ),
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            //Integrações
+            GrupoTitulo("Integrações")
+
+            val hcCor = if (state.healthConnectConectado) NutriGreen else MaterialTheme.colorScheme.onSurfaceVariant
+            ConfigItem(
+                icone     = Icons.Default.Favorite,
+                titulo    = "Health Connect",
+                descricao = if (state.healthConnectConectado) "Conectado e sincronizando"
+                            else "Sincronize seus dados de saúde",
+                containerColor = if (state.healthConnectConectado) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor   = if (state.healthConnectConectado) NutriGreen else MaterialTheme.colorScheme.onSurface,
+                iconeColor     = hcCor,
+                onClick   = { if (!state.healthConnectConectado) onConectarHealthConnect() },
+                trailing  = {
+                    Icon(
+                        imageVector = if (state.healthConnectConectado) Icons.Default.CheckCircle else Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = hcCor,
+                        modifier = Modifier.size(if (state.healthConnectConectado) 20.dp else 18.dp)
+                    )
+                }
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -164,7 +222,7 @@ fun ConfiguracoesScreen(
     }
 }
 
-//Seletor de tema
+//Tema
 @Composable
 private fun SeletorTema(
     temaSelecionado: TemaApp,
@@ -229,7 +287,7 @@ private fun SeletorTema(
     }
 }
 
-//Componentes extras
+//Extra
 @Composable
 private fun GrupoTitulo(texto: String) {
     Text(
@@ -241,22 +299,24 @@ private fun GrupoTitulo(texto: String) {
     )
 }
 
-@Suppress("SameParameterValue")
 @Composable
-private fun ItemSwitch(
-    icone:           ImageVector,
-    titulo:          String,
-    descricao:       String,
-    checked:         Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    carregando:      Boolean = false,
+private fun ConfigItem(
+    icone:          ImageVector,
+    titulo:         String,
+    descricao:      String,
+    modifier:       Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor:   Color = MaterialTheme.colorScheme.onSurface,
+    iconeColor:     Color = NutriGreen,
+    onClick:        (() -> Unit)? = null,
+    trailing:       @Composable (() -> Unit)? = null,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape    = RoundedCornerShape(12.dp),
-        colors   = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
+        colors   = CardDefaults.cardColors(containerColor = containerColor),
+        onClick  = onClick ?: {},
+        enabled  = onClick != null
     ) {
         Row(
             modifier              = Modifier
@@ -265,70 +325,16 @@ private fun ItemSwitch(
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(icone, null,
-                tint     = NutriGreen,
-                modifier = Modifier.size(22.dp))
+            Icon(icone, null, tint = iconeColor, modifier = Modifier.size(22.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(titulo, style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold)
+                    fontWeight = FontWeight.SemiBold, color = contentColor)
                 Text(descricao, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    color = if (containerColor == MaterialTheme.colorScheme.surfaceVariant)
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    else contentColor.copy(alpha = 0.8f))
             }
-            if (carregando) {
-                CircularProgressIndicator(
-                    modifier    = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color       = NutriGreen,
-                )
-            } else {
-                Switch(
-                    checked         = checked,
-                    onCheckedChange = onCheckedChange,
-                    colors          = SwitchDefaults.colors(
-                        checkedThumbColor  = Color.White,
-                        checkedTrackColor  = NutriGreen,
-                    ),
-                )
-            }
-        }
-    }
-}
-
-@Suppress("SameParameterValue")
-@Composable
-private fun ItemBotao(
-    icone:    ImageVector,
-    titulo:   String,
-    descricao: String,
-    onClick:  () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape    = RoundedCornerShape(12.dp),
-        colors   = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        onClick  = onClick,
-    ) {
-        Row(
-            modifier              = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(icone, null,
-                tint     = NutriGreen,
-                modifier = Modifier.size(22.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(titulo, style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold)
-                Text(descricao, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Icon(Icons.Default.ChevronRight, null,
-                tint     = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp))
+            trailing?.invoke()
         }
     }
 }

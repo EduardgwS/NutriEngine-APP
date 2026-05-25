@@ -17,19 +17,21 @@ import kotlinx.coroutines.launch
 
 data class ConfiguracoesUiState(
     val notificacoesAtivas:  Boolean = false,
+    val healthConnectConectado: Boolean = false,
 )
 
 class ConfiguracoesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs      = application.getSharedPreferences("nutriengine_prefs", Context.MODE_PRIVATE)
+    private val healthRepo = com.explosionlab.nutriengine.features.health.HealthConnectRepository(application)
 
     var state by mutableStateOf(ConfiguracoesUiState()); private set
 
     init {
-        carregarEstadoInicial()
+        refresh()
     }
 
-    private fun carregarEstadoInicial() {
+    fun refresh() {
         viewModelScope.launch {
             val temPermissaoSistemica = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(
@@ -41,9 +43,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             }
 
             val ativadasNoApp = prefs.getBoolean("notificacoes_ativas", true)
+            val hcConectado = healthRepo.temPermissoes()
 
             state = state.copy(
                 notificacoesAtivas = temPermissaoSistemica && ativadasNoApp,
+                healthConnectConectado = hcConectado,
             )
         }
     }

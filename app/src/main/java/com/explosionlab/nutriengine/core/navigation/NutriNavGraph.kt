@@ -105,8 +105,13 @@ fun NutriNavGraph(
             composable("hc_intro") {
                 HealthConnectOnboardingScreen(
                     onContinuar = {
-                        navController.navigate("perfil") {
-                            popUpTo("hc_intro") { inclusive = true }
+                        val anterior = navController.previousBackStackEntry?.destination?.route
+                        if (anterior == "configuracoes") {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate("perfil") {
+                                popUpTo("hc_intro") { inclusive = true }
+                            }
                         }
                     },
                 )
@@ -134,6 +139,7 @@ fun NutriNavGraph(
                 ConfiguracoesScreen(
                     onVoltar = { navController.popBackStack() },
                     onEditarPerfil = { navController.navigate("editar_perfil") },
+                    onConectarHealthConnect = { navController.navigate("hc_intro") },
                     appViewModel = appViewModel,
                 )
             }
